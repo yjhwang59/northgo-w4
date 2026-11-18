@@ -1,5 +1,8 @@
 import { hashPassword, readCookie, sessionCookie, sha256, verifyPassword } from "./auth.mjs";
 import { validateEnquiry } from "./validate-enquiry.mjs";
+import packageJson from "../package.json";
+
+const APP_VERSION = String(packageJson.version || "0.0.0");
 
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -829,12 +832,13 @@ async function publicCmsPage(env, locale, slug) {
 function loginPage(message) {
   const note = message ? "<p class=\"bad\" role=\"alert\">" + esc(message) + "</p>" : "";
   return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>登入｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body class=\"login-body\"><main class=\"login-card\"><p class=\"brand\">North<span>go</span></p><h1>後台登入</h1><p class=\"muted\">管理文案、媒體、動態頁面、詢問與帳號。</p>" +
-    note + "<form id=\"login-form\" method=\"post\" action=\"/api/login\"><label>帳號<input name=\"username\" autocomplete=\"username\" required></label><label>密碼<input name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label><button class=\"button\" type=\"submit\">登入</button><p class=\"form-status\" role=\"status\"></p></form></main><script src=\"/assets/login.js\" defer></script></body></html>";
+    note + "<form id=\"login-form\" method=\"post\" action=\"/api/login\"><label>帳號<input name=\"username\" autocomplete=\"username\" required></label><label>密碼<input name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label><button class=\"button\" type=\"submit\">登入</button><p class=\"form-status\" role=\"status\"></p></form><p class=\"admin-version\">v" + esc(APP_VERSION) + "</p></main><script src=\"/assets/login.js\" defer></script></body></html>";
 }
 
 function adminPage() {
   return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>後台｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body>" +
     "<header class=\"admin-bar\"><a class=\"brand\" href=\"/\">North<span>go</span></a><strong>後台管理</strong>" +
+    "<span class=\"admin-version\" title=\"目前版本\">v" + esc(APP_VERSION) + "</span>" +
     "<div id=\"whoami\" class=\"whoami\" aria-live=\"polite\"></div>" +
     "<button type=\"button\" id=\"profile-edit\" class=\"ghost\">我的帳號</button>" +
     "<button type=\"button\" id=\"logout\" class=\"ghost\">登出</button></header>" +
@@ -866,31 +870,40 @@ function adminPage() {
     "<button type=\"button\" id=\"save-content\" class=\"button\">儲存文案</button>" +
     "</div><div id=\"fields\"></div><p id=\"content-status\" class=\"form-status\" role=\"status\"></p></section>" +
     "<section id=\"media\" class=\"panel\"><div class=\"toolbar\">" +
+    "<label>搜尋<input id=\"media-search\" type=\"search\" placeholder=\"檔名或 key\"></label>" +
     "<label class=\"file-label\">上傳圖片<input id=\"media-file\" type=\"file\" accept=\"image/jpeg,image/png,image/webp,image/gif\"></label>" +
+    "<div class=\"toolbar-actions\">" +
+    "<button type=\"button\" id=\"media-reload\" class=\"ghost\">重新載入</button>" +
     "<button type=\"button\" id=\"media-upload\" class=\"button\">開始上傳</button>" +
+    "</div>" +
     "<p id=\"media-status\" class=\"form-status\" role=\"status\"></p></div><div id=\"media-list\" class=\"media-grid\"></div></section>" +
     "<section id=\"pages\" class=\"panel\"><div class=\"toolbar\">" +
     "<label>搜尋<input id=\"page-search\" type=\"search\" placeholder=\"標題或 slug\"></label>" +
-    "<label>狀態<select id=\"page-status-filter\"><option value=\"\">全部</option><option value=\"draft\">草稿</option><option value=\"published\">已發布</option></select></label>" +
-    "<button type=\"button\" id=\"page-create\" class=\"button\">新增頁面</button>" +
-    "</div><div id=\"page-list\"></div></section>" +
-    "<section id=\"users\" class=\"panel\" data-admin-only hidden>" +
-    "<div class=\"users-hero\">" +
-    "<div><h1>團隊帳號</h1><p class=\"muted\">多人共同管理後台。管理者可新增、編輯、刪除帳號與角色。</p></div>" +
-    "<div class=\"users-hero-art\" aria-hidden=\"true\">" +
-    "<svg viewBox=\"0 0 120 72\" width=\"120\" height=\"72\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">" +
-    "<rect x=\"8\" y=\"18\" width=\"40\" height=\"40\" rx=\"20\" fill=\"#6ed4d0\"/>" +
-    "<rect x=\"40\" y=\"18\" width=\"40\" height=\"40\" rx=\"20\" fill=\"#0a1b33\"/>" +
-    "<rect x=\"72\" y=\"18\" width=\"40\" height=\"40\" rx=\"20\" fill=\"#9ec5d8\"/>" +
-    "<circle cx=\"28\" cy=\"34\" r=\"7\" fill=\"#0a1b33\" opacity=\".35\"/>" +
-    "<circle cx=\"60\" cy=\"34\" r=\"7\" fill=\"#6ed4d0\" opacity=\".85\"/>" +
-    "<circle cx=\"92\" cy=\"34\" r=\"7\" fill=\"#0a1b33\" opacity=\".35\"/>" +
-    "</svg></div></div>" +
-    "<div class=\"toolbar\">" +
-    "<label>搜尋<input id=\"user-search\" type=\"search\" placeholder=\"帳號或顯示名稱\"></label>" +
+    "<label>狀態<select id=\"page-status-filter\"><option value=\"\">全部</option><option value=\"draft\">草稿</option><option value=\"published\" selected>已發布</option></select></label>" +
+    "<label>每頁<select id=\"page-page-size\"><option value=\"10\">10</option><option value=\"20\" selected>20</option><option value=\"50\">50</option><option value=\"100\">100</option></select></label>" +
     "<div class=\"toolbar-actions\">" +
+    "<div class=\"col-settings\" id=\"page-col-settings\">" +
+    "<button type=\"button\" id=\"page-columns\" class=\"ghost\" aria-expanded=\"false\" aria-controls=\"page-col-panel\">設定</button>" +
+    "<div id=\"page-col-panel\" class=\"col-settings-panel\" hidden></div>" +
+    "</div>" +
+    "<button type=\"button\" id=\"page-reload\" class=\"ghost\">重新載入</button>" +
+    "<button type=\"button\" id=\"page-create\" class=\"button\">新增頁面</button>" +
+    "</div>" +
+    "</div><div id=\"page-list\"></div><div id=\"page-pager\" class=\"pager\"></div></section>" +
+    "<section id=\"users\" class=\"panel\" data-admin-only hidden>" +
+    "<div class=\"toolbar\">" +
+    "<label>搜尋<input id=\"user-search\" type=\"search\" placeholder=\"帳號、顯示名稱、角色\"></label>" +
+    "<label>角色<select id=\"user-role-filter\"><option value=\"\" selected>全部</option><option value=\"admin\">管理者</option><option value=\"editor\">編輯者</option></select></label>" +
+    "<label>每頁<select id=\"user-page-size\"><option value=\"10\">10</option><option value=\"20\" selected>20</option><option value=\"50\">50</option><option value=\"100\">100</option></select></label>" +
+    "<div class=\"toolbar-actions\">" +
+    "<div class=\"col-settings\" id=\"user-col-settings\">" +
+    "<button type=\"button\" id=\"user-columns\" class=\"ghost\" aria-expanded=\"false\" aria-controls=\"user-col-panel\">設定</button>" +
+    "<div id=\"user-col-panel\" class=\"col-settings-panel\" hidden></div>" +
+    "</div>" +
+    "<button type=\"button\" id=\"user-reload\" class=\"ghost\">重新載入</button>" +
     "<button type=\"button\" id=\"user-create\" class=\"button\">新增使用者</button>" +
-    "</div></div><div id=\"user-list\"></div></section>" +
+    "</div>" +
+    "</div><div id=\"user-list\"></div><div id=\"user-pager\" class=\"pager\"></div></section>" +
     "</main>" +
     "<div id=\"modal\" class=\"modal\" hidden><div class=\"modal-card\" role=\"dialog\" aria-modal=\"true\"><div class=\"modal-head\"><h2 id=\"modal-title\">編輯</h2><button type=\"button\" id=\"modal-close\" class=\"ghost\">關閉</button></div><div id=\"modal-body\"></div><div class=\"modal-actions\"><button type=\"button\" id=\"modal-cancel\" class=\"ghost\">取消</button><button type=\"button\" id=\"modal-save\" class=\"button\">儲存</button></div><p id=\"modal-status\" class=\"form-status\" role=\"status\"></p></div></div>" +
     "<script src=\"/assets/admin.js\" defer></script></body></html>";
