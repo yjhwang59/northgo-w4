@@ -1,7 +1,7 @@
 # Northgo 官網示範站（northgo-w4）
 
 這是用大躍（Northgo）官網內容重新做的**示範網站**，給「AI 系統開發入門班」當教學範例。
-本資料夾自 [northgo-demo.aidc.work](https://northgo-demo.aidc.work/) 對應的示範站原始碼複製而來，架構與內容相同（v0.1.4）。
+本資料夾自 [northgo-demo.aidc.work](https://northgo-demo.aidc.work/) 對應的示範站原始碼複製而來，架構與內容相同（v0.1.5）。
 它示範一個網站怎麼從「只有畫面」一步步變成「能收資料、能自己管理」的系統。
 
 - 參考線上示範：https://northgo-demo.aidc.work/
