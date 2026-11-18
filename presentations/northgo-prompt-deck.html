@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Northgo 提示詞教學</title>
+  <meta name="description" content="Northgo 示範站從分析、實作到上線的 14 句提示詞，一句一頁，附教學說明。" />
+  <meta name="theme-color" content="#0a1b33" />
+  <style>
+    :root {
+      --bg: #06101c;
+      --panel: #0a1b33;
+      --card: #10243f;
+      --card-2: #16304f;
+      --text: #e8eef9;
+      --muted: #a8b8cc;
+      --line: #2a4566;
+      --accent: #6ed4d0;
+      --accent-soft: rgba(110, 212, 208, .14);
+      --accent-border: rgba(110, 212, 208, .4);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, .12);
+      --code-bg: #040b14;
+      --code-text: #d7f6f4;
+      --header-h: 52px;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+      --slide-bg: linear-gradient(180deg, #0c1a2e, #081422);
+      --hero-bg: radial-gradient(900px 500px at 18% 18%, rgba(110, 212, 208, .22), transparent 55%),
+                 linear-gradient(160deg, #0a1b33, #06101f);
+      --font-scale: 1;
+      --c-analyze: #7cc4ff;
+      --c-plan: #c4a7ff;
+      --c-build: #6ed4d0;
+      --c-ops: #fbbf24;
+      --c-doc: #f9a8d4;
+    }
+    :root[data-theme="light"] {
+      --bg: #f3f6fa;
+      --panel: #ffffff;
+      --card: #ffffff;
+      --card-2: #e7eef5;
+      --text: #0a1b33;
+      --muted: #3e5168;
+      --line: #c5d2e0;
+      --accent: #0b5f66;
+      --accent-soft: #d7f4f2;
+      --accent-border: #8fd4d0;
+      --warn: #8a5a00;
+      --warn-bg: #fff6e0;
+      --code-bg: #0a1b33;
+      --code-text: #e8f7f6;
+      --shadow: 0 10px 30px rgba(10, 27, 51, .08);
+      --slide-bg: #ffffff;
+      --hero-bg: linear-gradient(160deg, #f4f8fb, #e5f5f4);
+      --c-analyze: #1d5fa8;
+      --c-plan: #6a3fc4;
+      --c-build: #0b5f66;
+      --c-ops: #8a5a00;
+      --c-doc: #a3265e;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    a { color: var(--accent); }
+    code {
+      font-family: "Cascadia Code", Consolas, "SFMono-Regular", monospace;
+      font-size: .92em;
+      padding: 1px 6px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      overflow-wrap: anywhere;
+    }
+
+    /* Header */
+    #deck-header {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--header-h);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    body.presenting #deck-header { opacity: 0; transition: opacity .2s; }
+    body.presenting #deck-header:hover { opacity: .95; }
+    .brand { font-weight: 700; font-size: 14px; white-space: nowrap; }
+    .brand span { color: var(--accent); }
+    #progress {
+      flex: 1;
+      height: 6px;
+      background: var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    #progress > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width .25s;
+    }
+    .toolbar { display: flex; align-items: center; gap: 6px; }
+    .toolbar button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .toolbar button:hover { border-color: var(--accent); }
+    #slide-counter { min-width: 56px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* Deck */
+    #deck {
+      padding: calc(var(--header-h) + 18px) 16px 24px;
+      display: flex;
+      justify-content: center;
+    }
+    .slide {
+      display: none;
+      width: min(1280px, 100%);
+      aspect-ratio: 16 / 9;
+      background: var(--slide-bg);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 30px 40px 40px;
+      position: relative;
+      overflow: hidden;
+      font-size: calc(16px * var(--font-scale));
+    }
+    .slide.active { display: flex; flex-direction: column; }
+    .slide.hero { justify-content: center; background: var(--hero-bg); }
+    body.presenting #deck { padding: 0; height: 100vh; align-items: center; }
+    body.presenting .slide { width: min(100vw, calc(100vh * 16 / 9)); border-radius: 0; border: 0; }
+
+    .slide-no {
+      position: absolute;
+      right: 24px;
+      bottom: 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* Typography */
+    h1 { margin: 0 0 14px; font-size: 2.6em; line-height: 1.2; }
+    h2 { margin: 0; font-size: 1.7em; line-height: 1.25; }
+    h3 { margin: 0 0 6px; font-size: 1em; color: var(--accent); letter-spacing: .04em; }
+    .lead { font-size: 1.2em; color: var(--muted); max-width: 46em; margin: 0 0 22px; }
+    p { margin: 0 0 8px; }
+    ul { margin: 0; padding-left: 1.2em; }
+    li { margin: 0 0 4px; }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: .86em;
+      color: var(--muted);
+    }
+    .num {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 1.1em;
+    }
+    .tag {
+      display: inline-flex;
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      font-weight: 700;
+      font-size: .9em;
+    }
+    .tag.analyze { color: var(--c-analyze); }
+    .tag.plan { color: var(--c-plan); }
+    .tag.build { color: var(--c-build); }
+    .tag.ops { color: var(--c-ops); }
+    .tag.doc { color: var(--c-doc); }
+
+    /* Prompt slide layout */
+    .grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 22px;
+      margin-top: 14px;
+    }
+    .prompt-box {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .prompt-label {
+      font-size: .8em;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+    pre.prompt {
+      margin: 0;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 18px 20px;
+      border-radius: 14px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      font-family: "Cascadia Code", Consolas, "Noto Sans TC", monospace;
+      font-size: 1.02em;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .notes {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      overflow: auto;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 16px;
+    }
+    .card.tip {
+      background: var(--accent-soft);
+      border-color: var(--accent-border);
+    }
+    .card.warn {
+      background: var(--warn-bg);
+      border-color: var(--warn);
+    }
+    .card.warn h3 { color: var(--warn); }
+    .files { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* Overview */
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+      flex: 1;
+      min-height: 0;
+    }
+    .phase {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-top: 4px solid currentColor;
+      border-radius: 14px;
+      padding: 12px 14px;
+      overflow: auto;
+    }
+    .phase h3 { color: inherit; font-size: 1.05em; }
+    .phase ol { margin: 0; padding-left: 1.3em; color: var(--text); font-size: .9em; }
+    .phase.analyze { color: var(--c-analyze); }
+    .phase.plan { color: var(--c-plan); }
+    .phase.build { color: var(--c-build); }
+    .phase.ops { color: var(--c-ops); }
+    .phase.doc { color: var(--c-doc); }
+
+    .habits {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .habits .card b { display: block; margin-bottom: 4px; color: var(--accent); }
+
+    .hint { color: var(--muted); font-size: .9em; margin-top: 18px; }
+    kbd {
+      font-family: inherit;
+      font-size: .85em;
+      padding: 1px 7px;
+      border: 1px solid var(--line);
+      border-bottom-width: 2px;
+      border-radius: 6px;
+      background: var(--card);
+    }
+
+    /* Narrow screens: let slides grow instead of keeping 16:9 */
+    @media (max-width: 900px) {
+      .slide { aspect-ratio: auto; min-height: calc(100vh - var(--header-h) - 48px); padding: 22px 18px 36px; }
+      .grid, .habits { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: 1fr 1fr; }
+      pre.prompt { flex: none; }
+      h1 { font-size: 2em; }
+      h2 { font-size: 1.35em; }
+      .brand b { display: none; }
+      #btn-print, #btn-present { display: none; }
+    }
+    @media (max-width: 520px) {
+      .timeline { grid-template-columns: 1fr; }
+      .toolbar button { padding: 6px 8px; }
+    }
+
+    @media print {
+      @page { size: 1280px 720px; margin: 0; }
+      #deck-header { display: none; }
+      #deck { padding: 0; display: block; }
+      .slide {
+        display: flex !important;
+        flex-direction: column;
+        width: 1280px;
+        height: 720px;
+        aspect-ratio: auto;
+        border-radius: 0;
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      pre.prompt, .notes { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <header id="deck-header">
+    <div class="brand"><span>Northgo</span> <b>提示詞教學</b></div>
+    <div id="progress" aria-hidden="true"><i id="progress-bar"></i></div>
+    <span id="slide-counter" aria-live="polite">1 / 1</span>
+    <div class="toolbar">
+      <button id="btn-prev" type="button" aria-label="上一頁">◀</button>
+      <button id="btn-next" type="button" aria-label="下一頁">▶</button>
+      <button id="btn-aminus" type="button" aria-label="縮小字體">A−</button>
+      <button id="btn-aplus" type="button" aria-label="放大字體">A+</button>
+      <button id="btn-theme" type="button" aria-label="切換深淺色">◐</button>
+      <button id="btn-present" type="button" aria-label="全螢幕">全螢幕</button>
+      <button id="btn-print" type="button" aria-label="列印或存成 PDF">列印</button>
+    </div>
+  </header>
+
+  <main id="deck">
+
+    <!-- 封面 -->
+    <section class="slide hero active" data-title="封面">
+      <p class="meta-row"><span class="tag build">AI 系統開發入門班 · 教學範例</span></p>
+      <h1>14 句提示詞，<br />從官網分析到上線</h1>
+      <p class="lead">這份簡報收錄 Northgo 示範站開發過程中，使用者實際輸入的全部提示詞（原文未改）。每頁一句，說明這句話要 AI 做什麼、做出了什麼，以及可以學到的寫法。</p>
+      <p class="hint">期間：2026/10/14 – 2026/11/11　·　來源：<code>docs/northgo-demo-prompt.md</code><br />
+        操作：<kbd>←</kbd> <kbd>→</kbd> 換頁　<kbd>F</kbd> 全螢幕　<kbd>T</kbd> 深淺色</p>
+    </section>
+
+    <!-- 總覽 -->
+    <section class="slide" data-title="流程總覽">
+      <h2>流程總覽：五種提示詞</h2>
+      <p class="lead" style="margin:8px 0 0">同一個專案裡，提示詞的用途會一直換：先請 AI 看懂現況，再規劃、實作、維運，最後留下紀錄。</p>
+      <div class="timeline">
+        <div class="phase analyze">
+          <h3>分析</h3>
+          <ol>
+            <li value="1">分析官網產生網站地圖</li>
+            <li value="5">分析官網，提出重建方案</li>
+            <li value="9">規劃詢價表單流程</li>
+          </ol>
+        </div>
+        <div class="phase plan">
+          <h3>照計畫實作</h3>
+          <ol>
+            <li value="2">實作網站地圖</li>
+            <li value="6">實作官網重建</li>
+            <li value="10">實作表單簡報</li>
+            <li value="11">continue</li>
+          </ol>
+        </div>
+        <div class="phase build">
+          <h3>追加需求</h3>
+          <ol>
+            <li value="3">語系切換＋樹狀地圖</li>
+            <li value="4">全球辦公室世界地圖</li>
+          </ol>
+        </div>
+        <div class="phase ops">
+          <h3>維運</h3>
+          <ol>
+            <li value="7">重啟 local dev</li>
+            <li value="8">版本、提交、部署</li>
+            <li value="12">啟動 local dev</li>
+            <li value="13">做成啟動腳本</li>
+          </ol>
+        </div>
+        <div class="phase doc">
+          <h3>紀錄</h3>
+          <ol>
+            <li value="14">整理全部提示詞</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1 -->
+    <section class="slide" data-title="1 分析官網產生網站地圖">
+      <div class="meta-row"><span class="num">1</span><span class="tag analyze">分析</span><span>2026/10/14（三）09:10</span></div>
+      <h2>先讓 AI 看懂整個網站</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">分析 httpswww.northgo.com 生成網站地圖, HTML 格式, 符合RWD</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>請 AI 讀取官網，整理出所有頁面和層級，做成一頁網站地圖。這是整個專案的第一步：先盤點現況，再決定要改什麼。</p>
+          </div>
+          <div class="card">
+            <h3>寫法拆解</h3>
+            <ul>
+              <li><b>動作</b>：分析、生成</li>
+              <li><b>對象</b>：官網</li>
+              <li><b>產出格式</b>：HTML</li>
+              <li><b>限制條件</b>：RWD（手機、平板、電腦都能看）</li>
+            </ul>
+          </div>
+          <div class="card warn">
+            <h3>注意</h3>
+            <p>網址少了 <code>://</code>，AI 還是猜對了，但不要依賴這種運氣。網址最好直接從瀏覽器複製貼上。</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">1 / 14</span>
+    </section>
+
+    <!-- 2 -->
+    <section class="slide" data-title="2 實作網站地圖">
+      <div class="meta-row"><span class="num">2</span><span class="tag plan">照計畫實作</span><span>2026/10/14（三）09:16</span></div>
+      <h2>先出計畫，確認後才動手</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">Northgo RWD HTML 網站地圖
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>第 1 句之後，AI 先寫出一份計畫。使用者看過、按下「實作」後，編輯器自動送出這段文字，AI 才開始照計畫寫程式。</p>
+          </div>
+          <div class="card">
+            <h3>每一段的用意</h3>
+            <ul>
+              <li>第一行：計畫的標題</li>
+              <li><i>Do NOT edit the plan file</i>：計畫是約定，不讓 AI 自己改</li>
+              <li><i>Do not create them again</i>：待辦清單已建好，不要重複</li>
+              <li><i>Don't stop until…</i>：一路做完，不要每步都停下來問</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>sitemap.html</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">2 / 14</span>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide" data-title="3 語系切換與樹狀地圖">
+      <div class="meta-row"><span class="num">3</span><span class="tag build">追加需求</span><span>2026/10/14（三）09:24</span></div>
+      <h2>看到成果後，再補需求</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">網站地圖要依選擇的語系, 顯示對應的語系內容；
+另外生成一個網站地圖, 樹狀結構, 精簡內容
+</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>兩件事：一是讓原本的網站地圖可以切換語系，二是另外做一份只列標題的樹狀版。</p>
+          </div>
+          <div class="card">
+            <h3>可以學的寫法</h3>
+            <ul>
+              <li>一句話裡有兩個需求，用分號和換行分開，AI 比較不會漏掉其中一個。</li>
+              <li>「另外生成」說清楚是<b>新增</b>一份，不是改掉原本那份。</li>
+              <li>第一版做出來之後才發現少什麼，是正常的。小步迭代比一開始寫很長的規格容易。</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>sitemap-i18n.js</code><code>sitemap-tree.html</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">3 / 14</span>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide" data-title="4 全球辦公室世界地圖">
+      <div class="meta-row"><span class="num">4</span><span class="tag build">追加需求</span><span>2026/10/14（三）09:34</span></div>
+      <h2>給參考來源，指明要哪一塊</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">參考 https://www.northgo.com/zh-tw/contact 
+Locations -- Our global offices
+生成一頁世界地圖, 一次顯示全部的辦公室, 也可以選擇局部區域</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>從聯絡頁的「全球據點」區塊取得辦公室資料，畫成一頁世界地圖，可以看全部，也可以只看某個區域。</p>
+          </div>
+          <div class="card">
+            <h3>可以學的寫法</h3>
+            <ul>
+              <li><b>資料從哪來</b>：給完整網址，再貼上區塊標題，AI 就知道要抓頁面上的哪一段。</li>
+              <li><b>畫面怎麼動</b>：「一次顯示全部」是預設畫面，「選擇局部區域」是互動功能。把預設狀態和操作分開講。</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>locations.html</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">4 / 14</span>
+    </section>
+
+    <!-- 5 -->
+    <section class="slide" data-title="5 提出重建方案">
+      <div class="meta-row"><span class="num">5</span><span class="tag analyze">分析</span><span>2026/10/14（三）10:14</span></div>
+      <h2>大改之前，先請 AI 當顧問</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">分析官網 https://www.northgo.com/ , 提出重建及優化方案</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>只要求「提出方案」，沒有要求動手。AI 會說明現在的網站有哪些問題、打算怎麼重做，寫成一份計畫給人審。</p>
+          </div>
+          <div class="card">
+            <h3>為什麼這樣問</h3>
+            <ul>
+              <li>重建整個網站會動到很多檔案。先看計畫，比做完才發現方向不對便宜得多。</li>
+              <li>可以在計畫階段刪減範圍、調整技術選擇，再進入第 6 句。</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>常用動詞對照</h3>
+            <p>「分析／規劃／提出方案」→ 只產生計畫<br />「實作／生成／修改」→ 會直接改檔案</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">5 / 14</span>
+    </section>
+
+    <!-- 6 -->
+    <section class="slide" data-title="6 實作官網重建">
+      <div class="meta-row"><span class="num">6</span><span class="tag plan">照計畫實作</span><span>2026/10/14（三）11:17</span></div>
+      <h2>照計畫重建整個網站</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">Northgo 官網重建方案
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>和第 2 句是同一個模式：第 5 句的計畫通過後，讓 AI 依待辦清單一項一項完成。從 10:14 提問到 11:17 開始實作，中間這段時間就是人在看計畫。</p>
+          </div>
+          <div class="card">
+            <h3>做出來的架構</h3>
+            <ul>
+              <li><b>內容和版面分開</b>：四種語言的文字都放在 <code>content/site.js</code>，<code>build.mjs</code> 負責套版。</li>
+              <li><b>自動檢查</b>：<code>check-dist.mjs</code> 確認產生的頁數和 sitemap 筆數都正確。</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>content/site.js</code><code>build.mjs</code><code>assets/site.css</code><code>check-dist.mjs</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">6 / 14</span>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide" data-title="7 重啟 local dev">
+      <div class="meta-row"><span class="num">7</span><span class="tag ops">維運</span><span>2026/10/14（三）20:25</span></div>
+      <h2>短短一句也能用</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">重啟 local dev
+</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>晚上回來繼續工作，請 AI 把本機開發伺服器重新跑起來，好在瀏覽器上看網站。</p>
+          </div>
+          <div class="card">
+            <h3>為什麼這麼短也行</h3>
+            <p>AI 會自己去讀 <code>package.json</code> 找啟動指令，也會先停掉還在跑的舊伺服器。專案本身就是上下文，不必每次重講。</p>
+          </div>
+          <div class="card warn">
+            <h3>留意</h3>
+            <p>這時候還沒有固定的啟動腳本，每次都靠 AI 臨場判斷，做法可能每次不一樣。這個問題到第 13 句才解決。</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">7 / 14</span>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" data-title="8 版本、提交與部署">
+      <div class="meta-row"><span class="num">8</span><span class="tag ops">維運</span><span>2026/10/15（四）08:36</span></div>
+      <h2>一句話串起整個上線流程</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">update bump, commit and push to GitHub then Deploy to Cloudflare binding northgo-demo.aidc.work</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <ol style="margin:0;padding-left:1.3em">
+              <li><b>bump</b>：升版本號（這次是 v0.1.1）</li>
+              <li><b>commit and push</b>：提交並推上 GitHub</li>
+              <li><b>Deploy</b>：部署到 Cloudflare Workers</li>
+              <li><b>binding</b>：綁定自訂網域 <code>northgo-demo.aidc.work</code></li>
+            </ol>
+          </div>
+          <div class="card">
+            <h3>可以學的寫法</h3>
+            <p>用 <i>then</i> 把步驟的先後講清楚。網域名稱直接寫出來，AI 就會把它寫進 <code>wrangler.jsonc</code>。</p>
+          </div>
+          <div class="card warn">
+            <h3>後來的規則改了</h3>
+            <p>部署是對外的動作，出錯會影響所有人。現在 <code>AGENTS.md</code> 規定：AI 不自行部署，只從 <code>main</code> 由人執行 <code>npm run deploy</code>。</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">8 / 14</span>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide" data-title="9 規劃詢價表單流程">
+      <div class="meta-row"><span class="num">9</span><span class="tag analyze">分析</span><span>2026/10/15（四）11:50</span></div>
+      <h2>一次講清楚：內容、語言、圖、格式</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">規劃 Enquiry-form 作業流程 ,中英文版, 欄位請參考 https://www.northgo.com/contact 
+並說明表單流程(SVG格式), 生成HTML簡報</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>規劃「詢價表單」從填寫到送出的流程，做成一份中英文都有的 HTML 簡報。用的是「規劃」，所以 AI 先回一份計畫。</p>
+          </div>
+          <div class="card">
+            <h3>四個條件，缺一個結果就會不同</h3>
+            <ul>
+              <li><b>主題</b>：Enquiry-form 作業流程</li>
+              <li><b>語言</b>：中英文版</li>
+              <li><b>資料來源</b>：欄位參考官網聯絡頁</li>
+              <li><b>格式</b>：流程圖用 SVG，整份用 HTML 簡報</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>為什麼指定 SVG</h3>
+            <p>SVG 是文字寫成的向量圖，放大不會糊，也能直接改圖上的字，適合要反覆修改的流程圖。</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">9 / 14</span>
+    </section>
+
+    <!-- 10 -->
+    <section class="slide" data-title="10 實作表單簡報">
+      <div class="meta-row"><span class="num">10</span><span class="tag plan">照計畫實作</span><span>2026/10/15（四）11:55</span></div>
+      <h2>同一個模式，第三次用</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">Enquiry 表單流程簡報
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>第 9 句的計畫只看了 5 分鐘就通過，開始製作簡報。計畫越小，審查越快。</p>
+          </div>
+          <div class="card">
+            <h3>回顧「先規劃再實作」</h3>
+            <ul>
+              <li>第 1→2 句：網站地圖（6 分鐘）</li>
+              <li>第 5→6 句：官網重建（63 分鐘）</li>
+              <li>第 9→10 句：表單簡報（5 分鐘）</li>
+            </ul>
+            <p style="margin-top:6px">改動越大，花在看計畫的時間越長，這是合理的。</p>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>presentations/enquiry-form-deck.html</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">10 / 14</span>
+    </section>
+
+    <!-- 11 -->
+    <section class="slide" data-title="11 continue">
+      <div class="meta-row"><span class="num">11</span><span class="tag plan">照計畫實作</span><span>2026/10/15（四）13:25</span></div>
+      <h2>中斷了，就說「繼續」</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">continue</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>第 10 句的工作沒有一次做完就停了。使用者只回一個字，讓 AI 從停下的地方接著做。</p>
+          </div>
+          <div class="card">
+            <h3>常見的中斷原因</h3>
+            <ul>
+              <li>單次回覆長度或執行時間到了上限</li>
+              <li>網路或編輯器斷線</li>
+              <li>AI 做到一半停下來等人確認</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>小技巧</h3>
+            <p>同一個對話裡，AI 記得做到哪裡，所以 <i>continue</i> 就夠了。如果是開新對話，就要寫清楚「上次做到哪、還剩什麼」。</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">11 / 14</span>
+    </section>
+
+    <!-- 12 -->
+    <section class="slide" data-title="12 啟動 local dev">
+      <div class="meta-row"><span class="num">12</span><span class="tag ops">維運</span><span>2026/10/16（五）15:53</span></div>
+      <h2>同一件事說了第二次</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">啟動 local dev
+</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>和第 7 句幾乎一樣：隔天再開工，請 AI 啟動本機伺服器。</p>
+          </div>
+          <div class="card">
+            <h3>值得注意的訊號</h3>
+            <p>同一句話要講第二次，就表示這件事應該固定下來。每次都請 AI 臨場判斷，既花時間，結果也不一定一致。</p>
+          </div>
+          <div class="card tip">
+            <h3>接下來</h3>
+            <p>第 13 句把這件事做成腳本，以後不用再問 AI，自己打一行指令就能啟動。</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">12 / 14</span>
+    </section>
+
+    <!-- 13 -->
+    <section class="slide" data-title="13 做成啟動腳本">
+      <div class="meta-row"><span class="num">13</span><span class="tag ops">維運</span><span>2026/11/11（三）13:58</span></div>
+      <h2>重複的事，交給腳本</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">生成 本機 start local dev 的 scripts</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>把「啟動本機網站」需要的步驟寫成腳本。現在只要執行：</p>
+            <p><code>npm run start:local</code></p>
+          </div>
+          <div class="card">
+            <h3>腳本幫你做了什麼</h3>
+            <ul>
+              <li>第一次執行時自動建立 <code>.dev.vars</code></li>
+              <li>建立本機資料庫並重新產生網頁</li>
+              <li>在 8787–8790 自動找空的連接埠，多個分支可以同時跑</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>scripts/start-local-dev.mjs</code><code>.ps1</code><code>.cmd</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">13 / 14</span>
+    </section>
+
+    <!-- 14 -->
+    <section class="slide" data-title="14 整理全部提示詞">
+      <div class="meta-row"><span class="num">14</span><span class="tag doc">紀錄</span><span>2026/11/11（三）14:47</span></div>
+      <h2>把提示詞也當成專案紀錄</h2>
+      <div class="grid">
+        <div class="prompt-box">
+          <div class="prompt-label">原始提示詞</div>
+          <pre class="prompt">整理本專案全部我輸入的提示詞, 不要修改文字內容,  生成northgo-demo-prompt.md 存入 docs 資料夾。(包括這一句)</pre>
+        </div>
+        <div class="notes">
+          <div class="card">
+            <h3>這句在做什麼</h3>
+            <p>請 AI 從對話紀錄裡找出使用者打過的每一句話，依時間排好，存成 Markdown 檔。這份簡報就是用這個檔案做的。</p>
+          </div>
+          <div class="card">
+            <h3>三個把範圍講死的條件</h3>
+            <ul>
+              <li><b>「我輸入的」</b>：只要使用者的話，不要 AI 的回答</li>
+              <li><b>「不要修改文字內容」</b>：連錯字也保留（例如第 1 句的網址）</li>
+              <li><b>「包括這一句」</b>：連正在下的這句也算進去</li>
+            </ul>
+          </div>
+          <div class="card tip">
+            <h3>產出</h3>
+            <div class="files"><code>docs/northgo-demo-prompt.md</code></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-no">14 / 14</span>
+    </section>
+
+    <!-- 總結 -->
+    <section class="slide hero" data-title="總結">
+      <h2 style="font-size:2em;margin-bottom:6px">從 14 句話學到的六個習慣</h2>
+      <div class="habits">
+        <div class="card"><b>1. 先分析，再動手</b>用「分析／規劃／提出方案」先拿計畫，看過再實作。（第 1、5、9 句）</div>
+        <div class="card"><b>2. 講清楚產出長什麼樣</b>格式、語言、RWD、SVG，條件寫得越具體，越少重做。（第 1、9 句）</div>
+        <div class="card"><b>3. 給參考來源</b>貼完整網址，再指出頁面上的哪一個區塊。（第 4、9 句）</div>
+        <div class="card"><b>4. 小步迭代</b>看到第一版再補需求，比一開始寫長規格容易。（第 3、4 句）</div>
+        <div class="card"><b>5. 重複的事做成腳本</b>同一句話講第二次，就該自動化。（第 7、12、13 句）</div>
+        <div class="card"><b>6. 對外的動作由人把關</b>部署、推送正式分支，先確認再做。（第 8 句、<code>AGENTS.md</code>）</div>
+      </div>
+      <p class="hint">備註：詢價表單的後台與資料庫（commit <code>6c88057</code>）是在其他工具中完成的，相關提示詞不在這份紀錄裡。</p>
+    </section>
+
+  </main>
+
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+      var total = slides.length;
+      var counter = document.getElementById("slide-counter");
+      var bar = document.getElementById("progress-bar");
+      var fontScale = 1;
+      var index = 0;
+
+      function fromHash() {
+        var n = parseInt((location.hash || "").replace("#", ""), 10);
+        return isNaN(n) ? 0 : Math.min(Math.max(n - 1, 0), total - 1);
+      }
+
+      function show(i, keepHash) {
+        index = (i + total) % total;
+        slides.forEach(function (s, n) { s.classList.toggle("active", n === index); });
+        counter.textContent = (index + 1) + " / " + total;
+        bar.style.width = (((index + 1) / total) * 100).toFixed(2) + "%";
+        var leaf = slides[index].dataset.title;
+        document.title = leaf ? leaf + " · Northgo 提示詞教學" : "Northgo 提示詞教學";
+        if (!keepHash) history.replaceState(null, "", "#" + (index + 1));
+        window.scrollTo(0, 0);
+      }
+
+      document.getElementById("btn-prev").addEventListener("click", function () { show(index - 1); });
+      document.getElementById("btn-next").addEventListener("click", function () { show(index + 1); });
+      document.getElementById("btn-theme").addEventListener("click", function () {
+        var root = document.documentElement;
+        root.setAttribute("data-theme", root.getAttribute("data-theme") === "light" ? "dark" : "light");
+      });
+      function updateFontScale(d) {
+        fontScale = Math.max(0.8, Math.min(1.6, fontScale + d));
+        document.documentElement.style.setProperty("--font-scale", fontScale.toFixed(2));
+      }
+      document.getElementById("btn-aminus").addEventListener("click", function () { updateFontScale(-0.1); });
+      document.getElementById("btn-aplus").addEventListener("click", function () { updateFontScale(0.1); });
+      document.getElementById("btn-print").addEventListener("click", function () { window.print(); });
+      var btnPresent = document.getElementById("btn-present");
+      btnPresent.addEventListener("click", function () {
+        if (!document.fullscreenElement) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }
+        else if (document.exitFullscreen) document.exitFullscreen();
+      });
+      document.addEventListener("fullscreenchange", function () {
+        document.body.classList.toggle("presenting", !!document.fullscreenElement);
+      });
+
+      window.addEventListener("keydown", function (e) {
+        var tag = (e.target && e.target.tagName) || "";
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); show(index + 1); }
+        else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(index - 1); }
+        else if (e.key === "Home") { e.preventDefault(); show(0); }
+        else if (e.key === "End") { e.preventDefault(); show(total - 1); }
+        else if (e.key === "f" || e.key === "F") { e.preventDefault(); btnPresent.click(); }
+        else if (e.key === "t" || e.key === "T") { e.preventDefault(); document.getElementById("btn-theme").click(); }
+      });
+
+      var touchX = null;
+      document.getElementById("deck").addEventListener("touchstart", function (e) { touchX = e.touches[0].clientX; }, { passive: true });
+      document.getElementById("deck").addEventListener("touchend", function (e) {
+        if (touchX === null) return;
+        var dx = e.changedTouches[0].clientX - touchX;
+        if (Math.abs(dx) > 60) show(index + (dx < 0 ? 1 : -1));
+        touchX = null;
+      });
+
+      window.addEventListener("hashchange", function () { show(fromHash(), true); });
+      show(fromHash(), true);
+    })();
+  </script>
+</body>
+</html>

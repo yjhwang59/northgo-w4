@@ -1,0 +1,87 @@
+{
+  "groups": [
+    {
+      "id": "home",
+      "label": "首頁",
+      "fields": [
+        { "key": "home.lede", "label": "導言" },
+        { "key": "home.servicesTitle", "label": "服務標題" },
+        { "key": "home.servicesIntro", "label": "服務說明" },
+        { "key": "home.service.freight.title", "label": "貨運物流標題" },
+        { "key": "home.service.freight.text", "label": "貨運物流說明" },
+        { "key": "home.service.project.title", "label": "專案物流標題" },
+        { "key": "home.service.project.text", "label": "專案物流說明" },
+        { "key": "home.service.warehouse.title", "label": "倉儲物流標題" },
+        { "key": "home.service.warehouse.text", "label": "倉儲物流說明" },
+        { "key": "home.service.agency.title", "label": "船務代理標題" },
+        { "key": "home.service.agency.text", "label": "船務代理說明" },
+        { "key": "home.whyTitle", "label": "為什麼選擇標題" },
+        { "key": "home.whyBody", "label": "為什麼選擇說明" },
+        { "key": "home.teamTitle", "label": "團隊標題" },
+        { "key": "home.teamBody", "label": "團隊說明" },
+        { "key": "home.ctaTitle", "label": "行動標題" },
+        { "key": "home.ctaText", "label": "行動說明" }
+      ]
+    },
+    {
+      "id": "about",
+      "label": "關於",
+      "fields": [
+        { "key": "about.h1", "label": "標題" },
+        { "key": "about.lede", "label": "導言" },
+        { "key": "about.visionTitle", "label": "願景標題" },
+        { "key": "about.vision", "label": "願景" },
+        { "key": "about.visionBody", "label": "願景說明" },
+        { "key": "about.missionTitle", "label": "使命標題" },
+        { "key": "about.mission", "label": "使命" },
+        { "key": "about.missionBody", "label": "使命說明" },
+        { "key": "about.valuesTitle", "label": "價值標題" },
+        { "key": "about.valuesIntro", "label": "價值說明" }
+      ]
+    },
+    {
+      "id": "contact",
+      "label": "聯絡",
+      "fields": [
+        { "key": "contact.h1", "label": "標題" },
+        { "key": "contact.lede", "label": "導言" },
+        { "key": "contact.enquiryTitle", "label": "詢問標題" },
+        { "key": "contact.enquiryText", "label": "詢問說明" },
+        { "key": "contact.locationsTitle", "label": "據點標題" },
+        { "key": "contact.locationsIntro", "label": "據點說明" }
+      ]
+    },
+    {
+      "id": "freight",
+      "label": "貨運物流",
+      "fields": [
+        { "key": "freight.h1", "label": "標題" },
+        { "key": "freight.lede", "label": "導言" }
+      ]
+    },
+    {
+      "id": "project",
+      "label": "專案物流",
+      "fields": [
+        { "key": "project.h1", "label": "標題" },
+        { "key": "project.lede", "label": "導言" }
+      ]
+    },
+    {
+      "id": "warehouse",
+      "label": "倉儲物流",
+      "fields": [
+        { "key": "warehouse.h1", "label": "標題" },
+        { "key": "warehouse.lede", "label": "導言" }
+      ]
+    },
+    {
+      "id": "agency",
+      "label": "船務代理",
+      "fields": [
+        { "key": "agency.h1", "label": "標題" },
+        { "key": "agency.lede", "label": "導言" }
+      ]
+    }
+  ]
+}

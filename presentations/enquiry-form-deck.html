@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark" data-lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enquiry 表單流程</title>
+  <meta name="description" content="Northgo 官網 Enquiry 表單的欄位、中英文版與送出流程。" />
+  <meta name="theme-color" content="#0a1b33" />
+  <style>
+    :root {
+      --bg: #06101c;
+      --panel: #0a1b33;
+      --card: #10243f;
+      --card-2: #16304f;
+      --text: #e8eef9;
+      --muted: #a8b8cc;
+      --line: #2a4566;
+      --accent: #6ed4d0;
+      --portal-bright: #1a8a86;
+      --data: #6ed4d0;
+      --good: #3dbe8a;
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, .14);
+      --danger: #fca5a5;
+      --danger-bg: rgba(248, 113, 113, .14);
+      --header-h: 52px;
+      --radius: 14px;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+      --font-scale: 1.15;
+      --deck-scale: 1;
+      --slide-bg: linear-gradient(180deg, #0c1a2e, #081422);
+      --hero-bg: radial-gradient(900px 500px at 18% 18%, rgba(110, 212, 208, .22), transparent 55%),
+                 linear-gradient(160deg, #0a1b33, #06101f);
+      --flow-bg: linear-gradient(90deg, rgba(16, 36, 63, .9), rgba(10, 27, 51, .55));
+      --kicker-bg: rgba(110, 212, 208, .14);
+      --kicker-border: rgba(110, 212, 208, .4);
+      --kicker-text: #d4f7f5;
+      --num-bg: rgba(110, 212, 208, .16);
+      --num-text: #b7f0ed;
+      --callout-bg: rgba(110, 212, 208, .1);
+      --callout-border: rgba(110, 212, 208, .38);
+      --callout-text: #d7f6f4;
+      --callout-strong: #ffffff;
+      --pill-req-bg: rgba(110, 212, 208, .16);
+      --pill-req-text: #d4f7f5;
+      --pill-req-border: rgba(110, 212, 208, .45);
+      --pill-opt-bg: rgba(168, 184, 204, .12);
+      --pill-opt-text: #d5deea;
+      --pill-opt-border: rgba(168, 184, 204, .4);
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f3f6fa;
+      --panel: #ffffff;
+      --card: #ffffff;
+      --card-2: #e7eef5;
+      --text: #0a1b33;
+      --muted: #3e5168;
+      --line: #c5d2e0;
+      --accent: #0b5f66;
+      --portal-bright: #0b5f66;
+      --data: #0b5f66;
+      --good: #0f7a45;
+      --warn: #9a6700;
+      --warn-bg: #fff6e0;
+      --danger: #9f1239;
+      --danger-bg: #ffe4e6;
+      --shadow: 0 10px 30px rgba(10, 27, 51, .08);
+      --slide-bg: #ffffff;
+      --hero-bg: linear-gradient(160deg, #f4f8fb, #e5f5f4);
+      --flow-bg: #f4f8fb;
+      --kicker-bg: #d7f4f2;
+      --kicker-border: #8fd4d0;
+      --kicker-text: #0b5f66;
+      --num-bg: #d7f4f2;
+      --num-text: #0b5f66;
+      --callout-bg: #e8f7f6;
+      --callout-border: #8fd4d0;
+      --callout-text: #0a3d42;
+      --callout-strong: #0a1b33;
+      --pill-req-bg: #d7f4f2;
+      --pill-req-text: #0b5f66;
+      --pill-req-border: #8fd4d0;
+      --pill-opt-bg: #e8eef5;
+      --pill-opt-text: #0a1b33;
+      --pill-opt-border: #c5d2e0;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      font-size: 15px;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    a { color: var(--accent); }
+
+    html[data-lang="zh"] .en { display: none; }
+    html[data-lang="en"] .zh { display: none; }
+
+    #deck-header {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--header-h);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    body.presenting #deck-header { opacity: 0; }
+    body.presenting #deck-header:hover { opacity: .95; }
+
+    .brand {
+      font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .brand span { color: var(--accent); }
+
+    #progress {
+      flex: 1;
+      height: 6px;
+      background: color-mix(in srgb, var(--line) 80%, transparent);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    #progress > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--portal-bright), var(--data));
+      transition: width .25s;
+    }
+
+    .toolbar { display: flex; align-items: center; gap: 8px; }
+
+    .toolbar button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .toolbar button:hover { border-color: var(--accent); }
+
+    #btn-lang { min-width: 52px; font-weight: 700; }
+
+    #slide-counter {
+      min-width: 64px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    #deck {
+      padding: calc(var(--header-h) + 18px) 0 24px;
+      min-height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .slide {
+      display: none;
+      width: min(1280px, calc(100vw - 32px));
+      aspect-ratio: 16 / 9;
+      background: var(--slide-bg);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 32px 40px 46px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide.active { display: flex; flex-direction: column; }
+    .slide.hero { justify-content: center; background: var(--hero-bg); }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+
+    .kicker {
+      display: inline-flex;
+      margin: 0 0 18px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--kicker-bg);
+      border: 1px solid var(--kicker-border);
+      color: var(--kicker-text);
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 600;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: calc(clamp(34px, 3.6vw, 52px) * var(--font-scale));
+      line-height: 1.15;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: calc(clamp(26px, 2.4vw, 34px) * var(--font-scale));
+      line-height: 1.2;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: calc(clamp(16px, 1.35vw, 20px) * var(--font-scale));
+      line-height: 1.45;
+      max-width: 78ch;
+    }
+
+    .slide.hero .lead { max-width: 52ch; }
+
+    .stamp {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: calc(14px * var(--font-scale));
+    }
+
+    .footer {
+      position: absolute;
+      left: 40px;
+      right: 40px;
+      bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .grid { display: grid; gap: 12px; margin-top: 14px; }
+    .grid.two { grid-template-columns: 1fr 1fr; }
+    .grid.three { grid-template-columns: repeat(3, 1fr); }
+    .grid.five { grid-template-columns: repeat(5, 1fr); }
+
+    .card {
+      background: linear-gradient(180deg, var(--card), var(--card-2));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .grid.five .card { padding: 12px; }
+
+    .card > strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: calc(16px * var(--font-scale));
+    }
+
+    .grid.five .card > strong { font-size: calc(15px * var(--font-scale)); }
+
+    .card p, .card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: calc(14px * var(--font-scale));
+      line-height: 1.45;
+    }
+
+    .card ul { margin: 0; padding-left: 1.1em; }
+
+    .card.good { border-color: var(--accent); }
+    .card.bad { border-color: var(--danger); }
+
+    .num {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--num-bg);
+      color: var(--num-text);
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 700;
+    }
+
+    .callout {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--callout-border);
+      background: var(--callout-bg);
+      color: var(--callout-text);
+      font-size: calc(14px * var(--font-scale));
+      line-height: 1.45;
+    }
+
+    .callout strong { color: var(--callout-strong); }
+
+    .note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: calc(13px * var(--font-scale));
+      line-height: 1.4;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    .table th, .table td {
+      text-align: left;
+      padding: 5px 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: calc(14px * var(--font-scale));
+      vertical-align: middle;
+    }
+
+    .table th {
+      color: var(--muted);
+      font-weight: 700;
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 700;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .pill.req {
+      background: var(--pill-req-bg);
+      color: var(--pill-req-text);
+      border-color: var(--pill-req-border);
+    }
+
+    .pill.opt {
+      background: var(--pill-opt-bg);
+      color: var(--pill-opt-text);
+      border-color: var(--pill-opt-border);
+    }
+
+    .quote {
+      margin: 8px 0 0;
+      color: var(--text);
+      font-size: calc(18px * var(--font-scale));
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+    .arch-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-top: 8px;
+    }
+
+    .arch-svg text {
+      font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    .arch-svg .svg-label {
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      fill: var(--text);
+    }
+
+    .arch-svg .svg-sub {
+      font-size: calc(12px * var(--font-scale));
+      fill: var(--muted);
+    }
+
+    .arch-svg .svg-num {
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 800;
+      fill: var(--num-text);
+    }
+
+    .arch-svg .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+    .arch-svg .box-good { fill: var(--num-bg); stroke: var(--accent); stroke-width: 1.5; }
+    .arch-svg .box-stop { fill: var(--warn-bg); stroke: var(--warn); stroke-width: 1.5; }
+    .arch-svg .box-bad { fill: var(--danger-bg); stroke: var(--danger); stroke-width: 1.5; }
+    .arch-svg .arrow-line { stroke: var(--accent); fill: none; stroke-width: 2; }
+    .arch-svg .arrow-head { fill: var(--accent); }
+
+    body.presenting #deck {
+      padding: 0;
+      min-height: 100vh;
+      align-items: center;
+      background: #000;
+    }
+
+    body.presenting .slide {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(var(--deck-scale));
+      margin: 0;
+      width: 1280px;
+      height: 720px;
+      aspect-ratio: auto;
+      border-radius: 0;
+      border: none;
+    }
+
+    @media print {
+      #deck-header { display: none !important; }
+      #deck { padding: 0; display: block; }
+      .slide {
+        display: flex !important;
+        page-break-after: always;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header id="deck-header">
+    <div class="brand">Northgo <span>·</span> Enquiry</div>
+    <div id="progress" aria-hidden="true"><i id="progress-bar"></i></div>
+    <div class="toolbar">
+      <button type="button" id="btn-lang" title="切換為英文">中文</button>
+      <button type="button" id="btn-theme" title="切換主題 (T)">🌗</button>
+      <button type="button" id="btn-aminus" title="縮小字體（不縮放投影片）">A-</button>
+      <button type="button" id="btn-aplus" title="放大字體（不縮放投影片）">A+</button>
+      <button type="button" id="btn-prev" title="上一頁 (←)">‹</button>
+      <span id="slide-counter">1 / 9</span>
+      <button type="button" id="btn-next" title="下一頁 (→)">›</button>
+      <button type="button" id="btn-present" title="全螢幕 (F)">⛶</button>
+      <button type="button" id="btn-print" title="列印 (P)">🖨</button>
+    </div>
+  </header>
+
+  <main id="deck">
+    <section class="slide hero active" id="s1" data-title-zh="封面" data-title-en="Cover">
+      <p class="kicker">Northgo · Enquiry</p>
+      <h1>
+        <span class="zh">Enquiry 表單作業流程</span>
+        <span class="en">Enquiry form workflow</span>
+      </h1>
+      <p class="lead">
+        <span class="zh">對照官網 Contact 已公開的詢問表單：欄位、中英文敘事，以及送出後訪客看到的兩句系統文案。</span>
+        <span class="en">The public contact form: its fields, English and Traditional Chinese narration, and the two system lines a visitor sees after submit.</span>
+      </p>
+      <p class="stamp">
+        <span class="zh">9 頁 · 16:9</span>
+        <span class="en">9 slides · 16:9</span>
+      </p>
+      <div class="footer"><span>Northgo</span><span>1 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s2" data-title-zh="範圍" data-title-en="Scope">
+      <p class="eyebrow">02 / <span class="zh">範圍</span><span class="en">Scope</span></p>
+      <h2>
+        <span class="zh">這份簡報說明官網表單</span>
+        <span class="en">This deck describes the public form</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">欄位與系統句來自 <a href="https://www.northgo.com/contact" target="_blank" rel="noopener noreferrer">northgo.com/contact</a>。本倉庫聯絡頁仍以電子郵件開始詢問。這次不改那一頁，也不接後端。</span>
+        <span class="en">Fields and system lines come from <a href="https://www.northgo.com/contact" target="_blank" rel="noopener noreferrer">northgo.com/contact</a>. The contact page in this repo still starts an enquiry by email. This deck does not change that page or connect a backend.</span>
+      </p>
+      <div class="grid two">
+        <article class="card">
+          <div class="num">01</div>
+          <strong><span class="zh">說明對象</span><span class="en">In scope</span></strong>
+          <p>
+            <span class="zh">官網 Enquiry。名、姓、公司、電子郵件、電話有星號。國家、服務、訊息、條款沒有星號。</span>
+            <span class="en">The public Enquiry. First name, last name, company, email, and phone carry an asterisk. Country, services, message, and terms do not.</span>
+          </p>
+        </article>
+        <article class="card">
+          <div class="num">02</div>
+          <strong><span class="zh">不在這次範圍</span><span class="en">Left as it is</span></strong>
+          <p>
+            <span class="zh">本站聯絡頁寫明沒有表單，詢問從電子郵件開始。簡報不接收、不儲存、不轉寄任何詢問。</span>
+            <span class="en">This site’s contact page says there is no form. An enquiry starts by email. The deck does not receive, store, or forward one.</span>
+          </p>
+        </article>
+      </div>
+      <div class="callout">
+        <strong><span class="zh">系統句：</span><span class="en">System lines: </span></strong>
+        <span class="zh">英文頁與 /zh-tw/contact 都顯示同一組英文成功句與失敗句。簡報引用原文，不另寫一套中文系統訊息。</span>
+        <span class="en">The English page and /zh-tw/contact show the same English success and error lines. This deck quotes them and does not invent a Chinese system message.</span>
+      </div>
+      <div class="footer"><span>Northgo</span><span>2 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s3" data-title-zh="欄位" data-title-en="Fields">
+      <p class="eyebrow">03 / <span class="zh">欄位</span><span class="en">Fields</span></p>
+      <h2>
+        <span class="zh">欄位總表</span>
+        <span class="en">Field list</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">星號依官網。控制項是文字、國家下拉、服務選項、訊息，以及條款核取方塊。</span>
+        <span class="en">Asterisks follow the public form: text fields, a country dropdown, service options, a message, and a terms checkbox.</span>
+      </p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>中文</th>
+            <th>English</th>
+            <th><span class="zh">狀態</span><span class="en">Status</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>名</td>
+            <td>First name</td>
+            <td><span class="pill req"><span class="zh">必填 *</span><span class="en">Required *</span></span></td>
+          </tr>
+          <tr>
+            <td>姓</td>
+            <td>Last name</td>
+            <td><span class="pill req"><span class="zh">必填 *</span><span class="en">Required *</span></span></td>
+          </tr>
+          <tr>
+            <td>公司</td>
+            <td>Company</td>
+            <td><span class="pill req"><span class="zh">必填 *</span><span class="en">Required *</span></span></td>
+          </tr>
+          <tr>
+            <td>電子郵件</td>
+            <td>Email</td>
+            <td><span class="pill req"><span class="zh">必填 *</span><span class="en">Required *</span></span></td>
+          </tr>
+          <tr>
+            <td>電話</td>
+            <td>Phone number</td>
+            <td><span class="pill req"><span class="zh">必填 *</span><span class="en">Required *</span></span></td>
+          </tr>
+          <tr>
+            <td>國家</td>
+            <td>Country</td>
+            <td><span class="pill opt"><span class="zh">選填</span><span class="en">Optional</span></span></td>
+          </tr>
+          <tr>
+            <td>服務興趣</td>
+            <td>What services are you interested in?</td>
+            <td><span class="pill opt"><span class="zh">選填</span><span class="en">Optional</span></span></td>
+          </tr>
+          <tr>
+            <td>訊息</td>
+            <td>Message</td>
+            <td><span class="pill opt"><span class="zh">選填</span><span class="en">Optional</span></span></td>
+          </tr>
+          <tr>
+            <td>我接受條款</td>
+            <td>I accept the Terms</td>
+            <td><span class="pill opt"><span class="zh">同意步驟</span><span class="en">Consent step</span></span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="footer"><span>Northgo</span><span>3 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s4" data-title-zh="服務與國家" data-title-en="Services and country">
+      <p class="eyebrow">04 / <span class="zh">服務與國家</span><span class="en">Services and country</span></p>
+      <h2>
+        <span class="zh">五個服務，國家用下拉</span>
+        <span class="en">Five services, country as a dropdown</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">服務中文名沿用本站 zh-tw。國家不在這一頁列出全部選項。</span>
+        <span class="en">Chinese service names follow this site’s zh-tw copy. This slide does not list every country.</span>
+      </p>
+      <div class="grid five">
+        <article class="card">
+          <div class="num">01</div>
+          <strong><span class="zh">貨運物流</span><span class="en">Freight Logistics</span></strong>
+          <p><span class="zh">Freight Logistics</span><span class="en">貨運物流</span></p>
+        </article>
+        <article class="card">
+          <div class="num">02</div>
+          <strong><span class="zh">專案物流</span><span class="en">Project Logistics</span></strong>
+          <p><span class="zh">Project Logistics</span><span class="en">專案物流</span></p>
+        </article>
+        <article class="card">
+          <div class="num">03</div>
+          <strong><span class="zh">倉儲物流</span><span class="en">Warehouse Logistics</span></strong>
+          <p><span class="zh">Warehouse Logistics</span><span class="en">倉儲物流</span></p>
+        </article>
+        <article class="card">
+          <div class="num">04</div>
+          <strong><span class="zh">船務代理</span><span class="en">Shipping Agency</span></strong>
+          <p><span class="zh">Shipping Agency</span><span class="en">船務代理</span></p>
+        </article>
+        <article class="card">
+          <div class="num">05</div>
+          <strong><span class="zh">其他</span><span class="en">Other</span></strong>
+          <p><span class="zh">Other</span><span class="en">其他</span></p>
+        </article>
+      </div>
+      <article class="card" style="margin-top: 12px;">
+        <strong><span class="zh">國家下拉的例子</span><span class="en">Examples from the country dropdown</span></strong>
+        <div class="examples">
+          <span class="pill opt">Taiwan</span>
+          <span class="pill opt">United States</span>
+          <span class="pill opt">Japan</span>
+          <span class="pill opt">Vietnam</span>
+          <span class="pill opt">Singapore</span>
+          <span class="pill opt">China</span>
+        </div>
+        <p class="note">
+          <span class="zh">其餘國家以聯絡頁下拉為準，例如 United Kingdom、South Korea、Thailand。</span>
+          <span class="en">The rest stay on the live dropdown, including United Kingdom, South Korea, and Thailand.</span>
+        </p>
+      </article>
+      <div class="footer"><span>Northgo</span><span>4 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s5" data-title-zh="主路徑" data-title-en="Main path">
+      <p class="eyebrow">05 / <span class="zh">主路徑</span><span class="en">Main path</span></p>
+      <h2 id="flow-main-title">
+        <span class="zh">從開啟到成功句</span>
+        <span class="en">From open to the success line</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">訪客可補國家、服務與訊息，勾選條款，然後送出。</span>
+        <span class="en">The visitor can add country, services, and a message, accept the terms, then submit.</span>
+      </p>
+      <svg class="arch-svg" viewBox="0 0 1172 200" role="img" aria-labelledby="flow-main-title">
+        <defs>
+          <marker id="arr-main" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M0 0 L10 5 L0 10 Z" class="arrow-head"></path>
+          </marker>
+        </defs>
+        <rect class="box" x="12" y="28" width="164" height="150" rx="12"></rect>
+        <rect class="box" x="208" y="28" width="164" height="150" rx="12"></rect>
+        <rect class="box" x="404" y="28" width="164" height="150" rx="12"></rect>
+        <rect class="box" x="600" y="28" width="164" height="150" rx="12"></rect>
+        <rect class="box" x="796" y="28" width="164" height="150" rx="12"></rect>
+        <rect class="box-good" x="992" y="28" width="164" height="150" rx="12"></rect>
+        <line class="arrow-line" x1="180" y1="103" x2="200" y2="103" marker-end="url(#arr-main)"></line>
+        <line class="arrow-line" x1="376" y1="103" x2="396" y2="103" marker-end="url(#arr-main)"></line>
+        <line class="arrow-line" x1="572" y1="103" x2="592" y2="103" marker-end="url(#arr-main)"></line>
+        <line class="arrow-line" x1="768" y1="103" x2="788" y2="103" marker-end="url(#arr-main)"></line>
+        <line class="arrow-line" x1="964" y1="103" x2="984" y2="103" marker-end="url(#arr-main)"></line>
+        <text class="svg-num" x="94" y="62" text-anchor="middle">01</text>
+        <text class="svg-label zh" x="94" y="96" text-anchor="middle">開啟聯絡頁</text>
+        <text class="svg-label en" x="94" y="96" text-anchor="middle">Open</text>
+        <text class="svg-sub zh" x="94" y="122" text-anchor="middle">Contact</text>
+        <text class="svg-sub en" x="94" y="122" text-anchor="middle">Contact page</text>
+        <text class="svg-num" x="290" y="62" text-anchor="middle">02</text>
+        <text class="svg-label zh" x="290" y="96" text-anchor="middle">填寫必填</text>
+        <text class="svg-label en" x="290" y="96" text-anchor="middle">Required</text>
+        <text class="svg-sub zh" x="290" y="122" text-anchor="middle">五個星號</text>
+        <text class="svg-sub en" x="290" y="122" text-anchor="middle">Five asterisks</text>
+        <text class="svg-num" x="486" y="62" text-anchor="middle">03</text>
+        <text class="svg-label zh" x="486" y="96" text-anchor="middle">國家與服務</text>
+        <text class="svg-label en" x="486" y="96" text-anchor="middle">Country</text>
+        <text class="svg-sub zh" x="486" y="122" text-anchor="middle">與訊息</text>
+        <text class="svg-sub en" x="486" y="122" text-anchor="middle">Services, message</text>
+        <text class="svg-num" x="682" y="62" text-anchor="middle">04</text>
+        <text class="svg-label zh" x="682" y="96" text-anchor="middle">勾選條款</text>
+        <text class="svg-label en" x="682" y="96" text-anchor="middle">Terms</text>
+        <text class="svg-sub zh" x="682" y="122" text-anchor="middle">無星號</text>
+        <text class="svg-sub en" x="682" y="122" text-anchor="middle">No asterisk</text>
+        <text class="svg-num" x="878" y="62" text-anchor="middle">05</text>
+        <text class="svg-label zh" x="878" y="96" text-anchor="middle">送出</text>
+        <text class="svg-label en" x="878" y="96" text-anchor="middle">Submit</text>
+        <text class="svg-sub" x="878" y="122" text-anchor="middle">Enquiry</text>
+        <text class="svg-num" x="1074" y="62" text-anchor="middle">06</text>
+        <text class="svg-label zh" x="1074" y="96" text-anchor="middle">成功句</text>
+        <text class="svg-label en" x="1074" y="96" text-anchor="middle">Success</text>
+        <text class="svg-sub" x="1074" y="122" text-anchor="middle">Thank you</text>
+      </svg>
+      <p class="note">
+        <span class="zh">條款畫成同意步驟。官網沒有星號，這張圖不把它當成已驗證的必填攔截。</span>
+        <span class="en">Terms are a consent step. The public form has no asterisk there, so this diagram does not treat it as a validated required gate.</span>
+      </p>
+      <div class="footer"><span>Northgo</span><span>5 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s6" data-title-zh="分支" data-title-en="Branches">
+      <p class="eyebrow">06 / <span class="zh">分支</span><span class="en">Branches</span></p>
+      <h2 id="flow-branch-title">
+        <span class="zh">缺必填，或送出失敗</span>
+        <span class="en">Missing fields, or a failed submit</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">星號欄位未齊就停在表單。送出失敗則顯示 Oops，並可再送。</span>
+        <span class="en">Empty starred fields keep the visitor on the form. A failed submit shows Oops and can be sent again.</span>
+      </p>
+      <svg class="arch-svg" viewBox="0 0 1120 300" role="img" aria-labelledby="flow-branch-title">
+        <defs>
+          <marker id="arr-branch" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M0 0 L10 5 L0 10 Z" class="arrow-head"></path>
+          </marker>
+        </defs>
+        <rect class="box-stop" x="16" y="8" width="250" height="88" rx="12"></rect>
+        <rect class="box-stop" x="320" y="8" width="250" height="88" rx="12"></rect>
+        <rect class="box" x="16" y="106" width="250" height="88" rx="12"></rect>
+        <rect class="box" x="320" y="106" width="250" height="88" rx="12"></rect>
+        <rect class="box-good" x="624" y="106" width="250" height="88" rx="12"></rect>
+        <rect class="box-bad" x="16" y="204" width="250" height="88" rx="12"></rect>
+        <rect class="box-bad" x="320" y="204" width="250" height="88" rx="12"></rect>
+        <rect class="box" x="624" y="204" width="250" height="88" rx="12"></rect>
+        <line class="arrow-line" x1="270" y1="52" x2="312" y2="52" marker-end="url(#arr-branch)"></line>
+        <line class="arrow-line" x1="270" y1="150" x2="312" y2="150" marker-end="url(#arr-branch)"></line>
+        <line class="arrow-line" x1="574" y1="150" x2="616" y2="150" marker-end="url(#arr-branch)"></line>
+        <line class="arrow-line" x1="270" y1="248" x2="312" y2="248" marker-end="url(#arr-branch)"></line>
+        <line class="arrow-line" x1="574" y1="248" x2="616" y2="248" marker-end="url(#arr-branch)"></line>
+        <text class="svg-label zh" x="141" y="42" text-anchor="middle">缺必填</text>
+        <text class="svg-label en" x="141" y="42" text-anchor="middle">Missing required</text>
+        <text class="svg-sub zh" x="141" y="66" text-anchor="middle">星號未齊</text>
+        <text class="svg-sub en" x="141" y="66" text-anchor="middle">Starred fields empty</text>
+        <text class="svg-label zh" x="445" y="42" text-anchor="middle">停在表單</text>
+        <text class="svg-label en" x="445" y="42" text-anchor="middle">Stay on form</text>
+        <text class="svg-sub zh" x="445" y="66" text-anchor="middle">不送出</text>
+        <text class="svg-sub en" x="445" y="66" text-anchor="middle">Does not submit</text>
+        <text class="svg-label zh" x="141" y="140" text-anchor="middle">必填已齊</text>
+        <text class="svg-label en" x="141" y="140" text-anchor="middle">Required complete</text>
+        <text class="svg-sub zh" x="141" y="164" text-anchor="middle">五個星號</text>
+        <text class="svg-sub en" x="141" y="164" text-anchor="middle">Five starred fields</text>
+        <text class="svg-label zh" x="445" y="140" text-anchor="middle">送出</text>
+        <text class="svg-label en" x="445" y="140" text-anchor="middle">Submit</text>
+        <text class="svg-sub" x="445" y="164" text-anchor="middle">Enquiry</text>
+        <text class="svg-label zh" x="749" y="140" text-anchor="middle">成功句</text>
+        <text class="svg-label en" x="749" y="140" text-anchor="middle">Success</text>
+        <text class="svg-sub" x="749" y="164" text-anchor="middle">Thank you</text>
+        <text class="svg-label zh" x="141" y="238" text-anchor="middle">送出失敗</text>
+        <text class="svg-label en" x="141" y="238" text-anchor="middle">Submit failed</text>
+        <text class="svg-sub zh" x="141" y="262" text-anchor="middle">送出之後</text>
+        <text class="svg-sub en" x="141" y="262" text-anchor="middle">After submit</text>
+        <text class="svg-label" x="445" y="238" text-anchor="middle">Oops</text>
+        <text class="svg-sub zh" x="445" y="262" text-anchor="middle">官網失敗句</text>
+        <text class="svg-sub en" x="445" y="262" text-anchor="middle">Live error line</text>
+        <text class="svg-label zh" x="749" y="238" text-anchor="middle">可再送</text>
+        <text class="svg-label en" x="749" y="238" text-anchor="middle">Send again</text>
+        <text class="svg-sub zh" x="749" y="262" text-anchor="middle">回到表單</text>
+        <text class="svg-sub en" x="749" y="262" text-anchor="middle">Back to the form</text>
+      </svg>
+      <p class="note">
+        <span class="zh">條款仍是同意步驟。這張圖不把它畫成必填攔截。</span>
+        <span class="en">Terms stay a consent step. This diagram does not draw them as a required gate.</span>
+      </p>
+      <div class="footer"><span>Northgo</span><span>6 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s7" data-title-zh="送出後" data-title-en="After submit">
+      <p class="eyebrow">07 / <span class="zh">送出後</span><span class="en">After submit</span></p>
+      <h2>
+        <span class="zh">兩句系統文案</span>
+        <span class="en">The two system lines</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">英文頁與 /zh-tw/contact 都是下面這兩句英文。</span>
+        <span class="en">The English page and /zh-tw/contact both show these English sentences.</span>
+      </p>
+      <div class="grid two">
+        <article class="card good">
+          <div class="num">01</div>
+          <strong><span class="zh">成功</span><span class="en">Success</span></strong>
+          <p class="quote">Thank you! Your submission has been received!</p>
+          <p class="note"><span class="zh">官網原文</span><span class="en">Live site copy</span></p>
+        </article>
+        <article class="card bad">
+          <div class="num">02</div>
+          <strong><span class="zh">失敗</span><span class="en">Failure</span></strong>
+          <p class="quote">Oops! Something went wrong while submitting the form.</p>
+          <p class="note"><span class="zh">官網原文</span><span class="en">Live site copy</span></p>
+        </article>
+      </div>
+      <div class="callout">
+        <strong><span class="zh">訪客接著可以做的事：</span><span class="en">What the visitor can do next: </span></strong>
+        <span class="zh">看到成功句，流程在這一頁結束。看到 Oops，回到同一張表單再送一次。</span>
+        <span class="en">The success line ends the flow on this page. Oops returns the visitor to the same form for another submit.</span>
+      </div>
+      <div class="footer"><span>Northgo</span><span>7 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s8" data-title-zh="中英文" data-title-en="Languages">
+      <p class="eyebrow">08 / <span class="zh">中英文</span><span class="en">Languages</span></p>
+      <h2>
+        <span class="zh">步驟相同，敘事切換</span>
+        <span class="en">Same steps, two narrations</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">表單順序不因語系改變。變的是這份簡報的說法，以及欄位的中文名稱。</span>
+        <span class="en">The form order does not change with language. What changes is this deck’s narration and the Chinese field names.</span>
+      </p>
+      <div class="grid three">
+        <article class="card">
+          <div class="num">01</div>
+          <strong><span class="zh">步驟</span><span class="en">Steps</span></strong>
+          <p>
+            <span class="zh">開啟、必填、國家與服務、條款、送出、結果。順序固定。</span>
+            <span class="en">Open, required fields, country and services, terms, submit, result. The order stays fixed.</span>
+          </p>
+        </article>
+        <article class="card">
+          <div class="num">02</div>
+          <strong><span class="zh">名稱</span><span class="en">Labels</span></strong>
+          <p>
+            <span class="zh">工具列語言按鈕切換敘事。服務中文名使用本站的貨運物流、專案物流、倉儲物流、船務代理。</span>
+            <span class="en">The toolbar language button switches the narration. Chinese service names use this site’s 貨運物流、專案物流、倉儲物流、船務代理.</span>
+          </p>
+        </article>
+        <article class="card">
+          <div class="num">03</div>
+          <strong><span class="zh">系統句</span><span class="en">System lines</span></strong>
+          <p>
+            <span class="zh">成功句與 Oops 維持官網英文，不隨簡報語系改寫。</span>
+            <span class="en">The thank-you line and Oops stay in the published English, including while this deck is in Chinese.</span>
+          </p>
+        </article>
+      </div>
+      <div class="callout">
+        <strong><span class="zh">怎麼切：</span><span class="en">How to switch: </span></strong>
+        <span class="zh">現在按鈕顯示「中文」。按下去改為英文，按鈕改顯示 EN。再按一次回到中文。</span>
+        <span class="en">The button shows the language you are reading. Choose it to switch. EN means this deck is in English.</span>
+      </div>
+      <div class="footer"><span>Northgo</span><span>8 / 9</span></div>
+    </section>
+
+    <section class="slide" id="s9" data-title-zh="摘要" data-title-en="Summary">
+      <p class="eyebrow">09 / <span class="zh">摘要</span><span class="en">Summary</span></p>
+      <h2>
+        <span class="zh">表單收集什麼</span>
+        <span class="en">What the form collects</span>
+      </h2>
+      <p class="lead">
+        <span class="zh">送出之後，訪客只看到成功句或 Oops。這份簡報到這裡為止。</span>
+        <span class="en">After submit, the visitor sees the thank-you line or Oops. This deck stops there.</span>
+      </p>
+      <div class="grid three">
+        <article class="card">
+          <div class="num">01</div>
+          <strong><span class="zh">必填</span><span class="en">Required</span></strong>
+          <p>First name, Last name, Company, Email, Phone number.</p>
+        </article>
+        <article class="card">
+          <div class="num">02</div>
+          <strong><span class="zh">可一併填寫</span><span class="en">Can be included</span></strong>
+          <p>
+            <span class="zh">國家、五個服務選項、訊息，以及「我接受條款」。</span>
+            <span class="en">Country, the five service options, a message, and “I accept the Terms”.</span>
+          </p>
+        </article>
+        <article class="card">
+          <div class="num">03</div>
+          <strong><span class="zh">送出後</span><span class="en">After submit</span></strong>
+          <p>Thank you! Your submission has been received!</p>
+          <p class="note">Oops! Something went wrong while submitting the form.</p>
+        </article>
+      </div>
+      <div class="callout">
+        <strong><span class="zh">界線：</span><span class="en">Boundary: </span></strong>
+        <span class="zh">本站聯絡頁維持電子郵件。這份簡報不接收詢問。</span>
+        <span class="en">The contact page in this repo stays email. This deck does not receive an enquiry.</span>
+      </div>
+      <div class="footer"><span>Northgo</span><span>9 / 9</span></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const total = slides.length;
+      const counter = document.getElementById("slide-counter");
+      const bar = document.getElementById("progress-bar");
+      const langBtn = document.getElementById("btn-lang");
+      let index = Math.max(0, slides.findIndex((s) => s.classList.contains("active")));
+      if (index < 0) index = 0;
+      let fontScale = 1.15;
+      let lang = document.documentElement.getAttribute("data-lang") === "en" ? "en" : "zh";
+
+      document.getElementById("btn-theme").addEventListener("click", () => {
+        const root = document.documentElement;
+        root.setAttribute("data-theme", root.getAttribute("data-theme") === "light" ? "dark" : "light");
+      });
+
+      function updateFontScale(delta) {
+        fontScale = Math.max(0.8, Math.min(1.8, fontScale + delta));
+        document.documentElement.style.setProperty("--font-scale", fontScale.toFixed(2));
+      }
+      document.getElementById("btn-aminus").addEventListener("click", () => updateFontScale(-0.1));
+      document.getElementById("btn-aplus").addEventListener("click", () => updateFontScale(0.1));
+
+      function updateDeckScale() {
+        if (document.fullscreenElement) {
+          const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+          document.documentElement.style.setProperty("--deck-scale", scale.toFixed(4));
+        } else {
+          document.documentElement.style.setProperty("--deck-scale", "1");
+        }
+      }
+      window.addEventListener("resize", updateDeckScale);
+
+      function applyLang() {
+        const root = document.documentElement;
+        root.setAttribute("data-lang", lang);
+        root.lang = lang === "zh" ? "zh-Hant" : "en";
+        langBtn.textContent = lang === "zh" ? "中文" : "EN";
+        langBtn.title = lang === "zh" ? "切換為英文" : "Switch to 中文";
+      }
+
+      function show(i) {
+        index = (i + total) % total;
+        slides.forEach((s, n) => s.classList.toggle("active", n === index));
+        counter.textContent = (index + 1) + " / " + total;
+        bar.style.width = (((index + 1) / total) * 100).toFixed(2) + "%";
+        const slide = slides[index];
+        const leaf = lang === "zh" ? slide.dataset.titleZh : slide.dataset.titleEn;
+        const brand = lang === "zh" ? "Enquiry 表單流程" : "Enquiry form workflow";
+        document.title = leaf ? leaf + " · " + brand : brand;
+      }
+
+      langBtn.addEventListener("click", () => {
+        lang = lang === "zh" ? "en" : "zh";
+        applyLang();
+        show(index);
+      });
+
+      document.getElementById("btn-prev").addEventListener("click", () => show(index - 1));
+      document.getElementById("btn-next").addEventListener("click", () => show(index + 1));
+      document.getElementById("btn-print").addEventListener("click", () => window.print());
+      const btnPresent = document.getElementById("btn-present");
+      btnPresent.addEventListener("click", () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      });
+      document.addEventListener("fullscreenchange", () => {
+        document.body.classList.toggle("presenting", !!document.fullscreenElement);
+        updateDeckScale();
+      });
+
+      window.addEventListener("keydown", (e) => {
+        const tag = (e.target && e.target.tagName) || "";
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); show(index + 1); }
+        else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(index - 1); }
+        else if (e.key === "Home") { e.preventDefault(); show(0); }
+        else if (e.key === "End") { e.preventDefault(); show(total - 1); }
+        else if (e.key === "f" || e.key === "F") { e.preventDefault(); btnPresent.click(); }
+        else if (e.key === "t" || e.key === "T") { e.preventDefault(); document.getElementById("btn-theme").click(); }
+        else if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey) { e.preventDefault(); window.print(); }
+      });
+
+      applyLang();
+      show(index);
+    })();
+  </script>
+</body>
+</html>
