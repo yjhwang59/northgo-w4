@@ -44,7 +44,7 @@ npm run build
 npm run check
 ```
 
-如果 `npm run build` 出現 `EBUSY: resource busy or locked, rmdir '...\dist'`，代表同一個資料夾裡有 `wrangler dev` 正在使用 `dist/`（Windows 會鎖住資料夾）。這時不要去關掉別人的伺服器，改在自己的 worktree 裡建置；或者請使用者先停掉那個伺服器。
+`build.mjs` 會清空 `dist/` 內的檔案、不刪資料夾本身，避免 Windows 上 `wrangler dev` 鎖住資料夾時出現 `EBUSY: rmdir dist`。若連內部檔案都被鎖而建置失敗，再停掉**同一個資料夾**裡的 `wrangler dev`，或改到自己的 worktree 建置。
 
 `check-dist.mjs` 會檢查頁數（28 頁）和 sitemap（29 筆）。新增或刪除頁面時，要一起更新這兩個數字。
 

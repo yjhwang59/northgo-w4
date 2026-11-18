@@ -105,12 +105,29 @@ async function defaultsFor(request, env, locale) {
   return all[locale] || {};
 }
 
+function avatarUrl(key) {
+  return key ? "/media/" + encodeURIComponent(key) : "";
+}
+
+function mapUser(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name || "",
+    role: row.role || "editor",
+    avatarKey: row.avatar_key || "",
+    avatarUrl: avatarUrl(row.avatar_key || ""),
+    lastLoginAt: row.last_login_at || null,
+    createdAt: row.created_at
+  };
+}
+
 async function currentAdmin(request, env) {
   const token = readCookie(request, "ng_session");
   if (!token) return null;
   const hash = await sha256(token);
   return env.DB.prepare(
-    "SELECT admins.id AS id, admins.username AS username, admins.role AS role FROM sessions JOIN admins ON admins.id = sessions.admin_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?"
+    "SELECT admins.id AS id, admins.username AS username, admins.role AS role, admins.display_name AS display_name, admins.avatar_key AS avatar_key, admins.last_login_at AS last_login_at, admins.created_at AS created_at FROM sessions JOIN admins ON admins.id = sessions.admin_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?"
   ).bind(hash, Date.now()).first();
 }
 
@@ -286,6 +303,7 @@ async function postLogin(request, env) {
     if (wantsJson(request)) return json({ ok: false }, 401);
     return html(loginPage("登入失敗"), 401);
   }
+  await env.DB.prepare("UPDATE admins SET last_login_at = ? WHERE id = ?").bind(Date.now(), admin.id).run();
   const cookie = await startSession(request, env, admin.id);
   if (wantsJson(request)) return json({ ok: true }, 200, { "set-cookie": cookie });
   return new Response(null, { status: 303, headers: { location: "/admin", "set-cookie": cookie } });
@@ -412,18 +430,9 @@ async function saveContent(request, env) {
   return json({ ok: true });
 }
 
-function mapUser(row) {
-  return {
-    id: row.id,
-    username: row.username,
-    role: row.role || "editor",
-    createdAt: row.created_at
-  };
-}
-
 async function listUsers(env) {
   const result = await env.DB.prepare(
-    "SELECT id, username, role, created_at FROM admins ORDER BY id ASC"
+    "SELECT id, username, role, display_name, avatar_key, last_login_at, created_at FROM admins ORDER BY id ASC"
   ).all();
   return (result.results || []).map(mapUser);
 }
@@ -432,6 +441,7 @@ async function createUser(request, env) {
   const parsed = await readBody(request);
   if (parsed.error) return json({ ok: false }, 400);
   const username = cleanText(parsed.value.username, 64);
+  const displayName = cleanText(parsed.value.displayName, 80);
   const password = String(parsed.value.password || "");
   const role = String(parsed.value.role || "editor");
   if (!username || username.length < 2) return json({ ok: false, error: "username" }, 400);
@@ -441,23 +451,42 @@ async function createUser(request, env) {
   if (existing) return json({ ok: false, error: "exists" }, 409);
   const passwordHash = await hashPassword(password);
   const result = await env.DB.prepare(
-    "INSERT INTO admins (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)"
-  ).bind(username, passwordHash, role, Date.now()).run();
+    "INSERT INTO admins (username, password_hash, role, display_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).bind(username, passwordHash, role, displayName, Date.now()).run();
   const id = result.meta && result.meta.last_row_id;
-  return json({ ok: true, user: { id: id, username: username, role: role } }, 201);
+  return json({
+    ok: true,
+    user: mapUser({
+      id: id,
+      username: username,
+      role: role,
+      display_name: displayName,
+      avatar_key: "",
+      last_login_at: null,
+      created_at: Date.now()
+    })
+  }, 201);
 }
 
 async function updateUser(request, env, admin, userId) {
   const parsed = await readBody(request);
   if (parsed.error) return json({ ok: false }, 400);
   const target = await env.DB.prepare(
-    "SELECT id, username, role FROM admins WHERE id = ?"
+    "SELECT id, username, role, display_name, avatar_key, last_login_at, created_at FROM admins WHERE id = ?"
   ).bind(userId).first();
   if (!target) return json({ ok: false }, 404);
 
   const nextUsername = parsed.value.username != null ? cleanText(parsed.value.username, 64) : target.username;
   const nextRole = parsed.value.role != null ? String(parsed.value.role) : target.role;
+  const nextDisplayName = parsed.value.displayName != null
+    ? cleanText(parsed.value.displayName, 80)
+    : (target.display_name || "");
   const password = parsed.value.password != null ? String(parsed.value.password) : "";
+  let nextAvatarKey = target.avatar_key || "";
+  if (parsed.value.avatarKey != null) {
+    nextAvatarKey = cleanText(parsed.value.avatarKey, 120);
+  }
+  if (parsed.value.clearAvatar) nextAvatarKey = "";
 
   if (!nextUsername || nextUsername.length < 2) return json({ ok: false, error: "username" }, 400);
   if (!ROLES.has(nextRole)) return json({ ok: false, error: "role" }, 400);
@@ -476,14 +505,140 @@ async function updateUser(request, env, admin, userId) {
   if (password) {
     const passwordHash = await hashPassword(password);
     await env.DB.prepare(
-      "UPDATE admins SET username = ?, role = ?, password_hash = ? WHERE id = ?"
-    ).bind(nextUsername, nextRole, passwordHash, userId).run();
+      "UPDATE admins SET username = ?, role = ?, display_name = ?, avatar_key = ?, password_hash = ? WHERE id = ?"
+    ).bind(nextUsername, nextRole, nextDisplayName, nextAvatarKey, passwordHash, userId).run();
   } else {
     await env.DB.prepare(
-      "UPDATE admins SET username = ?, role = ? WHERE id = ?"
-    ).bind(nextUsername, nextRole, userId).run();
+      "UPDATE admins SET username = ?, role = ?, display_name = ?, avatar_key = ? WHERE id = ?"
+    ).bind(nextUsername, nextRole, nextDisplayName, nextAvatarKey, userId).run();
   }
-  return json({ ok: true, user: { id: userId, username: nextUsername, role: nextRole } });
+  return json({
+    ok: true,
+    user: mapUser({
+      id: userId,
+      username: nextUsername,
+      role: nextRole,
+      display_name: nextDisplayName,
+      avatar_key: nextAvatarKey,
+      last_login_at: target.last_login_at,
+      created_at: target.created_at
+    })
+  });
+}
+
+async function updateMe(request, env, admin) {
+  const parsed = await readBody(request);
+  if (parsed.error) return json({ ok: false }, 400);
+  const target = await env.DB.prepare(
+    "SELECT id, username, role, display_name, avatar_key, last_login_at, created_at FROM admins WHERE id = ?"
+  ).bind(admin.id).first();
+  if (!target) return json({ ok: false }, 404);
+
+  const nextDisplayName = parsed.value.displayName != null
+    ? cleanText(parsed.value.displayName, 80)
+    : (target.display_name || "");
+  const password = parsed.value.password != null ? String(parsed.value.password) : "";
+  let nextAvatarKey = target.avatar_key || "";
+  if (parsed.value.avatarKey != null) {
+    nextAvatarKey = cleanText(parsed.value.avatarKey, 120);
+  }
+  if (parsed.value.clearAvatar) nextAvatarKey = "";
+
+  if (password && password.length < 8) return json({ ok: false, error: "password" }, 400);
+
+  if (password) {
+    const passwordHash = await hashPassword(password);
+    await env.DB.prepare(
+      "UPDATE admins SET display_name = ?, avatar_key = ?, password_hash = ? WHERE id = ?"
+    ).bind(nextDisplayName, nextAvatarKey, passwordHash, admin.id).run();
+  } else {
+    await env.DB.prepare(
+      "UPDATE admins SET display_name = ?, avatar_key = ? WHERE id = ?"
+    ).bind(nextDisplayName, nextAvatarKey, admin.id).run();
+  }
+
+  return json({
+    ok: true,
+    user: mapUser({
+      id: target.id,
+      username: target.username,
+      role: target.role,
+      display_name: nextDisplayName,
+      avatar_key: nextAvatarKey,
+      last_login_at: target.last_login_at,
+      created_at: target.created_at
+    })
+  });
+}
+
+async function storeUploadedImage(env, admin, file) {
+  if (!env.MEDIA) return { error: json({ ok: false, error: "media" }, 503) };
+  if (!file || typeof file === "string" || !file.size) return { error: json({ ok: false, error: "file" }, 400) };
+  if (file.size > MEDIA_MAX_BYTES) return { error: json({ ok: false, error: "size" }, 400) };
+  const contentType = String(file.type || "");
+  const ext = MEDIA_TYPES[contentType];
+  if (!ext) return { error: json({ ok: false, error: "type" }, 400) };
+  const key = bytesToB64(crypto.getRandomValues(new Uint8Array(16))) + "." + ext;
+  const filename = cleanText(file.name || ("upload." + ext), 180) || ("upload." + ext);
+  await env.MEDIA.put(key, await file.arrayBuffer(), {
+    httpMetadata: { contentType: contentType }
+  });
+  const result = await env.DB.prepare(
+    "INSERT INTO media_assets (key, filename, content_type, size, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(key, filename, contentType, file.size, admin.id, Date.now()).run();
+  return {
+    media: {
+      id: result.meta && result.meta.last_row_id,
+      key: key,
+      filename: filename,
+      contentType: contentType,
+      size: file.size,
+      url: "/media/" + encodeURIComponent(key),
+      uploadedBy: admin.id,
+      createdAt: Date.now()
+    }
+  };
+}
+
+async function uploadAvatar(request, env, admin) {
+  if (!env.MEDIA) return json({ ok: false, error: "media" }, 503);
+  const type = request.headers.get("content-type") || "";
+  if (!type.includes("multipart/form-data")) return json({ ok: false, error: "form" }, 400);
+  const form = await request.formData();
+  const file = form.get("file");
+  const requestedId = form.get("userId");
+  let targetId = admin.id;
+  if (requestedId != null && String(requestedId) !== "") {
+    targetId = Number(requestedId);
+    if (!Number.isFinite(targetId)) return json({ ok: false, error: "user" }, 400);
+    if (targetId !== Number(admin.id) && admin.role !== "admin") {
+      return json({ ok: false, error: "forbidden" }, 403);
+    }
+  }
+  const target = await env.DB.prepare(
+    "SELECT id, username, role, display_name, avatar_key, last_login_at, created_at FROM admins WHERE id = ?"
+  ).bind(targetId).first();
+  if (!target) return json({ ok: false }, 404);
+
+  const stored = await storeUploadedImage(env, admin, file);
+  if (stored.error) return stored.error;
+
+  await env.DB.prepare("UPDATE admins SET avatar_key = ? WHERE id = ?")
+    .bind(stored.media.key, targetId).run();
+
+  return json({
+    ok: true,
+    media: stored.media,
+    user: mapUser({
+      id: target.id,
+      username: target.username,
+      role: target.role,
+      display_name: target.display_name,
+      avatar_key: stored.media.key,
+      last_login_at: target.last_login_at,
+      created_at: target.created_at
+    })
+  }, 201);
 }
 
 async function deleteUser(env, admin, userId) {
@@ -520,37 +675,12 @@ async function listMedia(env) {
 }
 
 async function uploadMedia(request, env, admin) {
-  if (!env.MEDIA) return json({ ok: false, error: "media" }, 503);
   const type = request.headers.get("content-type") || "";
   if (!type.includes("multipart/form-data")) return json({ ok: false, error: "form" }, 400);
   const form = await request.formData();
-  const file = form.get("file");
-  if (!file || typeof file === "string" || !file.size) return json({ ok: false, error: "file" }, 400);
-  if (file.size > MEDIA_MAX_BYTES) return json({ ok: false, error: "size" }, 400);
-  const contentType = String(file.type || "");
-  const ext = MEDIA_TYPES[contentType];
-  if (!ext) return json({ ok: false, error: "type" }, 400);
-  const key = bytesToB64(crypto.getRandomValues(new Uint8Array(16))) + "." + ext;
-  const filename = cleanText(file.name || ("upload." + ext), 180) || ("upload." + ext);
-  await env.MEDIA.put(key, await file.arrayBuffer(), {
-    httpMetadata: { contentType: contentType }
-  });
-  const result = await env.DB.prepare(
-    "INSERT INTO media_assets (key, filename, content_type, size, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?)"
-  ).bind(key, filename, contentType, file.size, admin.id, Date.now()).run();
-  return json({
-    ok: true,
-    media: {
-      id: result.meta && result.meta.last_row_id,
-      key: key,
-      filename: filename,
-      contentType: contentType,
-      size: file.size,
-      url: "/media/" + encodeURIComponent(key),
-      uploadedBy: admin.id,
-      createdAt: Date.now()
-    }
-  }, 201);
+  const stored = await storeUploadedImage(env, admin, form.get("file"));
+  if (stored.error) return stored.error;
+  return json({ ok: true, media: stored.media }, 201);
 }
 
 async function deleteMedia(env, mediaId) {
@@ -704,7 +834,10 @@ function loginPage(message) {
 
 function adminPage() {
   return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>後台｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body>" +
-    "<header class=\"admin-bar\"><a class=\"brand\" href=\"/\">North<span>go</span></a><strong>後台管理</strong><span id=\"whoami\" class=\"whoami muted\"></span><button type=\"button\" id=\"logout\" class=\"ghost\">登出</button></header>" +
+    "<header class=\"admin-bar\"><a class=\"brand\" href=\"/\">North<span>go</span></a><strong>後台管理</strong>" +
+    "<div id=\"whoami\" class=\"whoami\" aria-live=\"polite\"></div>" +
+    "<button type=\"button\" id=\"profile-edit\" class=\"ghost\">我的帳號</button>" +
+    "<button type=\"button\" id=\"logout\" class=\"ghost\">登出</button></header>" +
     "<main class=\"admin-main\"><div class=\"tabs\" role=\"tablist\">" +
     "<button type=\"button\" class=\"tab on\" data-tab=\"enquiries\">客戶詢問</button>" +
     "<button type=\"button\" class=\"tab\" data-tab=\"content\">網站內容</button>" +
@@ -741,9 +874,23 @@ function adminPage() {
     "<label>狀態<select id=\"page-status-filter\"><option value=\"\">全部</option><option value=\"draft\">草稿</option><option value=\"published\">已發布</option></select></label>" +
     "<button type=\"button\" id=\"page-create\" class=\"button\">新增頁面</button>" +
     "</div><div id=\"page-list\"></div></section>" +
-    "<section id=\"users\" class=\"panel\" data-admin-only hidden><div class=\"toolbar\">" +
+    "<section id=\"users\" class=\"panel\" data-admin-only hidden>" +
+    "<div class=\"users-hero\">" +
+    "<div><h1>團隊帳號</h1><p class=\"muted\">多人共同管理後台。管理者可新增、編輯、刪除帳號與角色。</p></div>" +
+    "<div class=\"users-hero-art\" aria-hidden=\"true\">" +
+    "<svg viewBox=\"0 0 120 72\" width=\"120\" height=\"72\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">" +
+    "<rect x=\"8\" y=\"18\" width=\"40\" height=\"40\" rx=\"20\" fill=\"#6ed4d0\"/>" +
+    "<rect x=\"40\" y=\"18\" width=\"40\" height=\"40\" rx=\"20\" fill=\"#0a1b33\"/>" +
+    "<rect x=\"72\" y=\"18\" width=\"40\" height=\"40\" rx=\"20\" fill=\"#9ec5d8\"/>" +
+    "<circle cx=\"28\" cy=\"34\" r=\"7\" fill=\"#0a1b33\" opacity=\".35\"/>" +
+    "<circle cx=\"60\" cy=\"34\" r=\"7\" fill=\"#6ed4d0\" opacity=\".85\"/>" +
+    "<circle cx=\"92\" cy=\"34\" r=\"7\" fill=\"#0a1b33\" opacity=\".35\"/>" +
+    "</svg></div></div>" +
+    "<div class=\"toolbar\">" +
+    "<label>搜尋<input id=\"user-search\" type=\"search\" placeholder=\"帳號或顯示名稱\"></label>" +
+    "<div class=\"toolbar-actions\">" +
     "<button type=\"button\" id=\"user-create\" class=\"button\">新增使用者</button>" +
-    "</div><div id=\"user-list\"></div></section>" +
+    "</div></div><div id=\"user-list\"></div></section>" +
     "</main>" +
     "<div id=\"modal\" class=\"modal\" hidden><div class=\"modal-card\" role=\"dialog\" aria-modal=\"true\"><div class=\"modal-head\"><h2 id=\"modal-title\">編輯</h2><button type=\"button\" id=\"modal-close\" class=\"ghost\">關閉</button></div><div id=\"modal-body\"></div><div class=\"modal-actions\"><button type=\"button\" id=\"modal-cancel\" class=\"ghost\">取消</button><button type=\"button\" id=\"modal-save\" class=\"button\">儲存</button></div><p id=\"modal-status\" class=\"form-status\" role=\"status\"></p></div></div>" +
     "<script src=\"/assets/admin.js\" defer></script></body></html>";
@@ -787,7 +934,13 @@ export default {
         const admin = auth.admin;
 
         if (request.method === "GET" && path === "/api/admin/me") {
-          return json({ id: admin.id, username: admin.username, role: admin.role || "editor" });
+          return json(mapUser(admin));
+        }
+        if (request.method === "PATCH" && path === "/api/admin/me") {
+          return updateMe(request, env, admin);
+        }
+        if (request.method === "POST" && path === "/api/admin/avatar") {
+          return uploadAvatar(request, env, admin);
         }
 
         if (request.method === "GET" && path === "/api/admin/enquiries") {

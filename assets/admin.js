@@ -33,12 +33,13 @@
   ];
   var ENQUIRY_COLUMNS_KEY = "admin-enquiries-visible-columns";
 
-  var me = { username: "", role: "editor" };
+  var me = { username: "", role: "editor", displayName: "", avatarUrl: "" };
   var groups = [];
   var enquiries = [];
   var mediaItems = [];
   var pages = [];
   var users = [];
+  var AVATAR_COLORS = ["#0a1b33", "#1f4b6e", "#0b5f66", "#3e5168", "#245b7a", "#167a74"];
   var enquiryPage = 1;
   var enquirySortBy = "createdAt";
   var enquirySortDir = "desc";
@@ -69,7 +70,9 @@
   var pageSearch = document.getElementById("page-search");
   var pageStatusFilter = document.getElementById("page-status-filter");
   var userList = document.getElementById("user-list");
+  var userSearch = document.getElementById("user-search");
   var whoami = document.getElementById("whoami");
+  var profileEditBtn = document.getElementById("profile-edit");
   var modal = document.getElementById("modal");
   var modalTitle = document.getElementById("modal-title");
   var modalBody = document.getElementById("modal-body");
@@ -135,12 +138,134 @@
     return node ? node.value : "";
   }
 
+  function displayNameOf(user) {
+    return (user && user.displayName) || (user && user.username) || "";
+  }
+
+  function initialsOf(user) {
+    var name = displayNameOf(user).trim();
+    if (!name) return "?";
+    var parts = name.split(/\s+/);
+    if (parts.length >= 2) return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  function avatarTone(seed) {
+    var text = String(seed || "");
+    var hash = 0;
+    for (var i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  }
+
+  function avatarNode(user, sizeClass) {
+    var wrap = el("span", "avatar" + (sizeClass ? " " + sizeClass : ""));
+    if (user && user.avatarUrl) {
+      var img = el("img");
+      img.src = user.avatarUrl;
+      img.alt = "";
+      wrap.appendChild(img);
+    } else {
+      wrap.style.background = avatarTone(displayNameOf(user) || (user && user.id) || "");
+      wrap.textContent = initialsOf(user);
+    }
+    return wrap;
+  }
+
+  function roleBadge(role) {
+    var badge = el("span", "role-badge role-" + (role || "editor"));
+    badge.innerHTML = role === "admin"
+      ? "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M8 1.5l2.1 4.3 4.7.7-3.4 3.3.8 4.7L8 12.3 3.8 14.5l.8-4.7L1.2 6.5l4.7-.7L8 1.5z\"/></svg>"
+      : "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M8 1.8A3.2 3.2 0 1 1 8 8.2 3.2 3.2 0 0 1 8 1.8zm0 7.3c2.7 0 5 1.4 5 3.1v1H3v-1c0-1.7 2.3-3.1 5-3.1z\"/></svg>";
+    badge.appendChild(document.createTextNode(roleLabel[role] || role || ""));
+    return badge;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "尚未登入";
+    return new Date(value).toLocaleString("zh-Hant", { hour12: false });
+  }
+
+  function userErrorMessage(code) {
+    if (code === "last-admin") return "不能刪除或降級最後一個管理者。";
+    if (code === "exists") return "這個帳號已經存在。";
+    if (code === "password") return "密碼至少需要 8 碼。";
+    if (code === "self") return "不能刪除目前登入的帳號。";
+    if (code === "size") return "圖片太大，請選 2MB 以內的檔案。";
+    if (code === "type") return "只接受 JPEG、PNG、WebP 或 GIF。";
+    if (code === "media") return "媒體儲存尚未就緒。";
+    if (code === "file") return "請先選擇圖片。";
+    return "操作失敗，請稍後再試。";
+  }
+
   function applyRoleUi() {
     var isAdmin = me.role === "admin";
     document.querySelectorAll("[data-admin-only]").forEach(function (node) {
       node.hidden = !isAdmin;
     });
-    whoami.textContent = me.username + "（" + (roleLabel[me.role] || me.role) + "）";
+    whoami.textContent = "";
+    whoami.appendChild(avatarNode(me, "avatar-sm"));
+    var meta = el("span", "whoami-meta");
+    meta.appendChild(el("strong", "", displayNameOf(me)));
+    meta.appendChild(el("span", "whoami-user", "@" + me.username));
+    whoami.appendChild(meta);
+    whoami.appendChild(roleBadge(me.role));
+  }
+
+  function bindAvatarPreview(form) {
+    var fileInput = form.querySelector("[name=avatarFile]");
+    var preview = form.querySelector("[data-avatar-preview]");
+    var clearBtn = form.querySelector("[data-clear-avatar]");
+    var clearInput = form.querySelector("[name=clearAvatar]");
+    if (!fileInput || !preview) return;
+    fileInput.addEventListener("change", function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      if (clearInput) clearInput.value = "";
+      var url = URL.createObjectURL(file);
+      preview.textContent = "";
+      preview.style.background = "";
+      var img = el("img");
+      img.src = url;
+      img.alt = "";
+      preview.appendChild(img);
+    });
+    if (clearBtn && clearInput) {
+      clearBtn.addEventListener("click", function () {
+        clearInput.value = "1";
+        fileInput.value = "";
+        preview.textContent = "";
+        preview.style.background = avatarTone(displayNameOf(me));
+        preview.textContent = initialsOf({
+          displayName: fieldValue(form, "displayName") || displayNameOf(modalTarget || me),
+          username: fieldValue(form, "username") || (modalTarget && modalTarget.username) || me.username
+        });
+      });
+    }
+  }
+
+  function avatarFieldHtml(user) {
+    return "<div class=\"avatar-field\">" +
+      "<span class=\"avatar avatar-lg\" data-avatar-preview></span>" +
+      "<div class=\"avatar-field-actions\">" +
+      "<label class=\"file-label\">上傳頭像<input name=\"avatarFile\" type=\"file\" accept=\"image/jpeg,image/png,image/webp,image/gif\"></label>" +
+      "<button type=\"button\" class=\"ghost\" data-clear-avatar>移除頭像</button>" +
+      "<input type=\"hidden\" name=\"clearAvatar\" value=\"\">" +
+      "<p class=\"muted tiny\">可選 JPEG／PNG／WebP／GIF，最大 2MB。" + (user && user.avatarUrl ? "" : "未上傳時會顯示縮寫頭像。") + "</p>" +
+      "</div></div>";
+  }
+
+  function fillAvatarPreview(form, user) {
+    var preview = form.querySelector("[data-avatar-preview]");
+    if (!preview) return;
+    if (user && user.avatarUrl) {
+      var img = el("img");
+      img.src = user.avatarUrl;
+      img.alt = "";
+      preview.appendChild(img);
+    } else {
+      preview.style.background = avatarTone(displayNameOf(user || me));
+      preview.textContent = initialsOf(user || me);
+    }
   }
 
   function enquiryName(row) {
@@ -629,34 +754,95 @@
   function userForm(user) {
     var form = el("form", "modal-form");
     form.innerHTML =
+      avatarFieldHtml(user) +
+      "<label>顯示名稱<input name=\"displayName\" maxlength=\"80\" autocomplete=\"nickname\" placeholder=\"例如：小明\"></label>" +
       "<label>帳號<input name=\"username\" required maxlength=\"64\" autocomplete=\"off\"></label>" +
       "<label>密碼<input name=\"password\" type=\"password\" " + (user ? "" : "required ") + "minlength=\"8\" autocomplete=\"new-password\" placeholder=\"" + (user ? "留空則不修改" : "至少 8 碼") + "\"></label>" +
       "<label>角色<select name=\"role\"><option value=\"editor\">編輯者</option><option value=\"admin\">管理者</option></select></label>";
     if (user) {
+      form.querySelector("[name=displayName]").value = user.displayName || "";
       form.querySelector("[name=username]").value = user.username;
       form.querySelector("[name=role]").value = user.role;
     }
+    fillAvatarPreview(form, user);
+    bindAvatarPreview(form);
     return form;
+  }
+
+  function profileForm() {
+    var form = el("form", "modal-form");
+    form.innerHTML =
+      avatarFieldHtml(me) +
+      "<label>顯示名稱<input name=\"displayName\" maxlength=\"80\" autocomplete=\"nickname\" placeholder=\"例如：小明\"></label>" +
+      "<label>帳號<input name=\"username\" disabled></label>" +
+      "<label>新密碼<input name=\"password\" type=\"password\" minlength=\"8\" autocomplete=\"new-password\" placeholder=\"留空則不修改\"></label>" +
+      "<p class=\"muted tiny\">帳號與角色由管理者設定；你可以更新顯示名稱、密碼與頭像。</p>";
+    form.querySelector("[name=displayName]").value = me.displayName || "";
+    form.querySelector("[name=username]").value = me.username;
+    fillAvatarPreview(form, me);
+    bindAvatarPreview(form);
+    return form;
+  }
+
+  function filteredUsers() {
+    var q = ((userSearch && userSearch.value) || "").trim().toLowerCase();
+    if (!q) return users.slice();
+    return users.filter(function (user) {
+      return (user.username || "").toLowerCase().indexOf(q) !== -1 ||
+        (user.displayName || "").toLowerCase().indexOf(q) !== -1;
+    });
   }
 
   function renderUsers() {
     userList.textContent = "";
     if (!users.length) {
-      userList.appendChild(el("p", "muted", "目前沒有使用者。"));
+      var empty = el("div", "empty-state");
+      empty.innerHTML =
+        "<div class=\"empty-art\" aria-hidden=\"true\">" +
+        "<svg viewBox=\"0 0 160 100\" width=\"160\" height=\"100\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">" +
+        "<rect x=\"20\" y=\"28\" width=\"48\" height=\"48\" rx=\"24\" fill=\"#d5e0ea\"/>" +
+        "<rect x=\"56\" y=\"20\" width=\"56\" height=\"56\" rx=\"28\" fill=\"#6ed4d0\"/>" +
+        "<rect x=\"96\" y=\"28\" width=\"48\" height=\"48\" rx=\"24\" fill=\"#9ec5d8\"/>" +
+        "<circle cx=\"44\" cy=\"46\" r=\"8\" fill=\"#0a1b33\" opacity=\".25\"/>" +
+        "<circle cx=\"84\" cy=\"42\" r=\"10\" fill=\"#0a1b33\" opacity=\".45\"/>" +
+        "<circle cx=\"120\" cy=\"46\" r=\"8\" fill=\"#0a1b33\" opacity=\".25\"/>" +
+        "</svg></div>" +
+        "<h2>還沒有其他隊友</h2>" +
+        "<p class=\"muted\">新增管理者或編輯者，讓多人一起維護詢價、文案與媒體。</p>";
+      var cta = el("button", "button", "新增第一位隊友");
+      cta.type = "button";
+      cta.addEventListener("click", function () {
+        openModal("新增使用者", userForm(null), "user-create", null);
+      });
+      empty.appendChild(cta);
+      userList.appendChild(empty);
       return;
     }
-    var table = el("table", "grid");
-    var head = el("tr");
-    ["帳號", "角色", "建立時間", ""].forEach(function (label) {
-      head.appendChild(el("th", "", label));
-    });
-    table.appendChild(head);
-    users.forEach(function (user) {
-      var tr = el("tr");
-      tr.appendChild(el("td", "", user.username));
-      tr.appendChild(el("td", "", roleLabel[user.role] || user.role));
-      tr.appendChild(el("td", "", new Date(user.createdAt).toLocaleString("zh-Hant", { hour12: false })));
-      var actions = el("td", "row-actions");
+
+    var list = filteredUsers();
+    if (!list.length) {
+      userList.appendChild(el("p", "muted", "沒有符合搜尋條件的使用者。"));
+      return;
+    }
+
+    var wrap = el("div", "user-cards");
+    list.forEach(function (user) {
+      var card = el("article", "user-card" + (Number(user.id) === Number(me.id) ? " is-me" : ""));
+      card.appendChild(avatarNode(user, "avatar-md"));
+      var body = el("div", "user-card-body");
+      var titleRow = el("div", "user-card-title");
+      titleRow.appendChild(el("strong", "", displayNameOf(user)));
+      if (Number(user.id) === Number(me.id)) titleRow.appendChild(el("span", "you-chip", "你"));
+      titleRow.appendChild(roleBadge(user.role));
+      body.appendChild(titleRow);
+      body.appendChild(el("p", "muted", "@" + user.username));
+      var meta = el("div", "user-card-meta");
+      meta.appendChild(el("span", "", "最後登入：" + formatDateTime(user.lastLoginAt)));
+      meta.appendChild(el("span", "", "建立：" + formatDateTime(user.createdAt)));
+      body.appendChild(meta);
+      card.appendChild(body);
+
+      var actions = el("div", "row-actions");
       var edit = el("button", "ghost", "編輯");
       edit.type = "button";
       edit.addEventListener("click", function () {
@@ -665,18 +851,19 @@
       var remove = el("button", "ghost", "刪除");
       remove.type = "button";
       remove.disabled = Number(user.id) === Number(me.id);
+      remove.title = remove.disabled ? "不能刪除自己的帳號" : "";
       remove.addEventListener("click", function () {
-        if (!window.confirm("刪除使用者 " + user.username + "？")) return;
+        if (!window.confirm("刪除使用者 " + displayNameOf(user) + "（@" + user.username + "）？")) return;
         api("/api/admin/users/" + user.id, { method: "DELETE" }).then(loadUsers).catch(function (err) {
-          window.alert(err.code === "last-admin" ? "不能刪除最後一個管理者。" : "刪除失敗。");
+          window.alert(userErrorMessage(err.code));
         });
       });
       actions.appendChild(edit);
       actions.appendChild(remove);
-      tr.appendChild(actions);
-      table.appendChild(tr);
+      card.appendChild(actions);
+      wrap.appendChild(card);
     });
-    userList.appendChild(table);
+    userList.appendChild(wrap);
   }
 
   function loadUsers() {
@@ -687,6 +874,31 @@
     }).catch(function () {
       userList.textContent = "使用者清單讀取失敗。";
     });
+  }
+
+  function uploadAvatarIfNeeded(form, userId) {
+    var fileInput = form.querySelector("[name=avatarFile]");
+    var file = fileInput && fileInput.files && fileInput.files[0];
+    if (!file) return Promise.resolve(null);
+    var body = new FormData();
+    body.append("file", file);
+    if (userId != null) body.append("userId", String(userId));
+    return api("/api/admin/avatar", { method: "POST", body: body });
+  }
+
+  function refreshMeFrom(user) {
+    if (!user) return;
+    me = {
+      id: user.id,
+      username: user.username,
+      role: user.role || "editor",
+      displayName: user.displayName || "",
+      avatarUrl: user.avatarUrl || "",
+      avatarKey: user.avatarKey || "",
+      lastLoginAt: user.lastLoginAt || null,
+      createdAt: user.createdAt
+    };
+    applyRoleUi();
   }
 
   function saveModal() {
@@ -735,24 +947,71 @@
       return;
     }
     if (modalMode === "user-create" || modalMode === "user-edit") {
+      var password = fieldValue(form, "password");
+      var clearAvatar = fieldValue(form, "clearAvatar") === "1";
       var userPayload = {
         username: fieldValue(form, "username"),
+        displayName: fieldValue(form, "displayName"),
         role: fieldValue(form, "role")
       };
-      var password = fieldValue(form, "password");
       if (password) userPayload.password = password;
+      if (clearAvatar) userPayload.clearAvatar = true;
+      if (modalMode === "user-edit" && modalTarget && modalTarget.role === "admin" && userPayload.role !== "admin") {
+        var adminCount = users.filter(function (item) { return item.role === "admin"; }).length;
+        if (adminCount <= 1) {
+          modalStatus.textContent = userErrorMessage("last-admin");
+          return;
+        }
+      }
       var userReq = modalMode === "user-create"
-        ? api("/api/admin/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ password: password }, userPayload)) })
-        : api("/api/admin/users/" + modalTarget.id, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(userPayload) });
-      userReq.then(function () {
-        closeModal();
-        loadUsers();
+        ? api("/api/admin/users", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(Object.assign({ password: password }, userPayload))
+          })
+        : api("/api/admin/users/" + modalTarget.id, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(userPayload)
+          });
+      userReq.then(function (data) {
+        var saved = data && data.user;
+        var targetId = saved ? saved.id : (modalTarget && modalTarget.id);
+        return uploadAvatarIfNeeded(form, targetId).then(function (avatarData) {
+          if (avatarData && avatarData.user && Number(avatarData.user.id) === Number(me.id)) {
+            refreshMeFrom(avatarData.user);
+          } else if (saved && Number(saved.id) === Number(me.id)) {
+            refreshMeFrom(Object.assign({}, me, saved));
+          }
+          closeModal();
+          loadUsers();
+        });
       }).catch(function (err) {
-        var msg = "儲存失敗。";
-        if (err.code === "exists") msg = "帳號已存在。";
-        if (err.code === "password") msg = "密碼至少 8 碼。";
-        if (err.code === "last-admin") msg = "不能降級最後一個管理者。";
-        modalStatus.textContent = msg;
+        modalStatus.textContent = userErrorMessage(err.code);
+      });
+      return;
+    }
+
+    if (modalMode === "profile-edit") {
+      var profilePassword = fieldValue(form, "password");
+      var profilePayload = {
+        displayName: fieldValue(form, "displayName")
+      };
+      if (profilePassword) profilePayload.password = profilePassword;
+      if (fieldValue(form, "clearAvatar") === "1") profilePayload.clearAvatar = true;
+      api("/api/admin/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(profilePayload)
+      }).then(function (data) {
+        refreshMeFrom(data.user || data);
+        return uploadAvatarIfNeeded(form, me.id).then(function (avatarData) {
+          if (avatarData && avatarData.user) refreshMeFrom(avatarData.user);
+          closeModal();
+          if (me.role === "admin") loadUsers();
+        });
+      }).catch(function (err) {
+        modalStatus.textContent = userErrorMessage(err.code);
       });
     }
   }
@@ -892,6 +1151,14 @@
   document.getElementById("user-create").addEventListener("click", function () {
     openModal("新增使用者", userForm(null), "user-create", null);
   });
+  if (userSearch) {
+    userSearch.addEventListener("input", function () { debounce("users", renderUsers); });
+  }
+  if (profileEditBtn) {
+    profileEditBtn.addEventListener("click", function () {
+      openModal("我的帳號", profileForm(), "profile-edit", me);
+    });
+  }
   document.getElementById("modal-close").addEventListener("click", closeModal);
   document.getElementById("modal-cancel").addEventListener("click", closeModal);
   document.getElementById("modal-save").addEventListener("click", saveModal);
@@ -909,8 +1176,7 @@
   renderEnquiryColumnPanel();
 
   api("/api/admin/me").then(function (data) {
-    me = { id: data.id, username: data.username, role: data.role || "editor" };
-    applyRoleUi();
+    refreshMeFrom(data);
     loadEnquiries();
     loadContent();
     loadMedia();

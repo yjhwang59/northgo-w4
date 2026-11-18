@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const root = dirname(fileURLToPath(import.meta.url));
@@ -403,7 +403,29 @@ function locationsPage() {
   writeFileSync(join(dist, "locations.html"), html);
 }
 
-rmSync(dist, { recursive: true, force: true });
+function resetDist(dir) {
+  // Windows: wrangler/workerd may keep an open handle on the dist folder itself.
+  // Removing the directory root then fails with EBUSY; clearing children is safe.
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+    return;
+  }
+  for (const name of readdirSync(dir)) {
+    const target = join(dir, name);
+    try {
+      rmSync(target, { recursive: true, force: true });
+    } catch (err) {
+      if (err && (err.code === "EBUSY" || err.code === "EPERM")) {
+        throw new Error(
+          "無法清空 dist/（" + err.code + "）。請先停掉這個資料夾裡正在跑的 wrangler dev，再重新建置。"
+        );
+      }
+      throw err;
+    }
+  }
+}
+
+resetDist(dist);
 mkdirSync(dist, { recursive: true });
 cpSync(join(root, "assets"), join(dist, "assets"), { recursive: true });
 cpSync(join(root, "content", "countries.json"), join(dist, "assets", "countries.json"));

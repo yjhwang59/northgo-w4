@@ -132,7 +132,7 @@ textarea { min-height: 7rem; resize: vertical; }
 .admin-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   padding: 0.8rem 1.25rem;
   background: var(--navy);
   color: #fff;
@@ -140,11 +140,206 @@ textarea { min-height: 7rem; resize: vertical; }
 
 .admin-bar .whoami {
   margin-left: auto;
-  color: rgba(255, 255, 255, 0.82);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 0.95rem;
+  min-width: 0;
+}
+
+.whoami-meta {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.whoami-meta strong {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.whoami-user {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.8rem;
 }
 
 .admin-bar .ghost { color: var(--navy); }
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  background: #1f4b6e;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-sm { width: 2rem; height: 2rem; font-size: 0.72rem; }
+.avatar-md { width: 3rem; height: 3rem; font-size: 0.95rem; }
+.avatar-lg { width: 4.5rem; height: 4.5rem; font-size: 1.2rem; }
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.role-admin {
+  background: rgba(110, 212, 208, 0.22);
+  color: #0b5f66;
+}
+
+.admin-bar .role-admin {
+  background: rgba(110, 212, 208, 0.28);
+  color: #dff8f6;
+}
+
+.role-editor {
+  background: #e8eef4;
+  color: #3e5168;
+}
+
+.admin-bar .role-editor {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.tiny { font-size: 0.85rem; font-weight: 500; }
+
+.users-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(110, 212, 208, 0.18), transparent 55%),
+    #fff;
+  border: 1px solid var(--line);
+}
+
+.users-hero h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+
+.users-hero p { margin: 0; }
+
+.users-hero-art {
+  flex: 0 0 auto;
+  opacity: 0.95;
+}
+
+.user-cards {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.user-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.user-card.is-me {
+  border-color: rgba(110, 212, 208, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(110, 212, 208, 0.35);
+}
+
+.user-card-body { min-width: 0; }
+
+.user-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.15rem;
+}
+
+.user-card-body p { margin: 0; }
+
+.user-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.you-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: var(--navy);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.avatar-field {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7fbfd;
+}
+
+.avatar-field-actions {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  text-align: center;
+  padding: 2rem 1rem;
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+}
+
+.empty-state h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.empty-state p { margin: 0; max-width: 28rem; }
+
+.empty-art { margin-bottom: 0.25rem; }
 
 .admin-main { width: min(1100px, calc(100% - 2rem)); margin: 1.25rem auto 2rem; }
 
@@ -377,4 +572,15 @@ textarea { min-height: 7rem; resize: vertical; }
   .toolbar label { min-width: 100%; }
   .toolbar-actions { margin-left: 0; width: 100%; }
   .col-settings-panel { right: auto; left: 0; }
+  .users-hero { flex-direction: column; align-items: flex-start; }
+  .user-card {
+    grid-template-columns: auto 1fr;
+  }
+  .user-card .row-actions {
+    grid-column: 1 / -1;
+  }
+  .avatar-field {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

@@ -1,0 +1,3 @@
+ALTER TABLE admins ADD COLUMN display_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE admins ADD COLUMN avatar_key TEXT NOT NULL DEFAULT '';
+ALTER TABLE admins ADD COLUMN last_login_at INTEGER;
