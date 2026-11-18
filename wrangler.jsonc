@@ -19,7 +19,7 @@
     {
       "binding": "DB",
       "database_name": "northgo-w4",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "c9aaddf2-0968-4ae0-860d-94bae38a5378",
       "migrations_dir": "migrations"
     }
   ],
