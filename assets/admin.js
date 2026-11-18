@@ -20,6 +20,10 @@
   };
   var localePrefix = { en: "", "zh-tw": "/zh-tw", ja: "/ja", vi: "/vi" };
 
+  var ICON_EDIT = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M11.7 1.3a1.5 1.5 0 0 1 2.1 2.1L5.6 11.6 2 12.8l1.2-3.6L11.7 1.3zm-1 1.4L3.9 9.5l-.5 1.5 1.5-.5 6.8-6.8-.9-.9z\"/></svg>";
+  var ICON_DELETE = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M6 2h4l.5 1H14v1.5H2V3h3.5L6 2zm1 4v6H5.5V6H7zm3.5 0v6H9V6h1.5zM3.5 4.5h9l-.7 9.2A1.5 1.5 0 0 1 10.3 15H5.7a1.5 1.5 0 0 1-1.5-1.3L3.5 4.5z\"/></svg>";
+  var ICON_OPEN = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M9 2h5v5h-1.5V4.56L7.53 9.53 6.47 8.47 11.44 3.5H9V2zM3 4.5h4V6H4.5v5.5h5.5V10H11v3H3v-8.5z\"/></svg>";
+
   var ENQUIRY_COLUMNS = [
     { key: "createdAt", label: "時間", defaultVisible: true, sortable: true, sortType: "date" },
     { key: "name", label: "姓名", defaultVisible: true, sortable: true, sortType: "string" },
@@ -33,6 +37,24 @@
   ];
   var ENQUIRY_COLUMNS_KEY = "admin-enquiries-visible-columns";
 
+  var PAGE_COLUMNS = [
+    { key: "title", label: "標題", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "locale", label: "語系", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "slug", label: "Slug", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "status", label: "狀態", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "updatedAt", label: "更新時間", defaultVisible: true, sortable: true, sortType: "date" }
+  ];
+  var PAGE_COLUMNS_KEY = "admin-pages-visible-columns";
+
+  var USER_COLUMNS = [
+    { key: "username", label: "帳號", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "displayName", label: "顯示名稱", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "role", label: "角色", defaultVisible: true, sortable: true, sortType: "string" },
+    { key: "lastLoginAt", label: "最後登入", defaultVisible: true, sortable: true, sortType: "date" },
+    { key: "createdAt", label: "建立時間", defaultVisible: false, sortable: true, sortType: "date" }
+  ];
+  var USER_COLUMNS_KEY = "admin-users-visible-columns";
+
   var me = { username: "", role: "editor", displayName: "", avatarUrl: "" };
   var groups = [];
   var enquiries = [];
@@ -43,9 +65,15 @@
   var enquiryPage = 1;
   var enquirySortBy = "createdAt";
   var enquirySortDir = "desc";
-  var enquiryVisibleKeys = ENQUIRY_COLUMNS.filter(function (col) {
-    return col.defaultVisible;
-  }).map(function (col) { return col.key; });
+  var enquiryVisibleKeys = defaultVisibleKeys(ENQUIRY_COLUMNS);
+  var pagePage = 1;
+  var pageSortBy = "updatedAt";
+  var pageSortDir = "desc";
+  var pageVisibleKeys = defaultVisibleKeys(PAGE_COLUMNS);
+  var userPage = 1;
+  var userSortBy = "username";
+  var userSortDir = "asc";
+  var userVisibleKeys = defaultVisibleKeys(USER_COLUMNS);
   var contentDirty = false;
   var searchTimers = {};
   var modalMode = null;
@@ -66,17 +94,36 @@
   var contentStatus = document.getElementById("content-status");
   var mediaList = document.getElementById("media-list");
   var mediaStatus = document.getElementById("media-status");
+  var mediaSearch = document.getElementById("media-search");
+  var mediaReloadBtn = document.getElementById("media-reload");
   var pageList = document.getElementById("page-list");
+  var pagePager = document.getElementById("page-pager");
   var pageSearch = document.getElementById("page-search");
   var pageStatusFilter = document.getElementById("page-status-filter");
+  var pagePageSize = document.getElementById("page-page-size");
+  var pageColPanel = document.getElementById("page-col-panel");
+  var pageColumnsBtn = document.getElementById("page-columns");
+  var pageReloadBtn = document.getElementById("page-reload");
   var userList = document.getElementById("user-list");
+  var userPager = document.getElementById("user-pager");
   var userSearch = document.getElementById("user-search");
+  var userRoleFilter = document.getElementById("user-role-filter");
+  var userPageSize = document.getElementById("user-page-size");
+  var userColPanel = document.getElementById("user-col-panel");
+  var userColumnsBtn = document.getElementById("user-columns");
+  var userReloadBtn = document.getElementById("user-reload");
   var whoami = document.getElementById("whoami");
   var profileEditBtn = document.getElementById("profile-edit");
   var modal = document.getElementById("modal");
   var modalTitle = document.getElementById("modal-title");
   var modalBody = document.getElementById("modal-body");
   var modalStatus = document.getElementById("modal-status");
+
+  function defaultVisibleKeys(columns) {
+    return columns.filter(function (col) {
+      return col.defaultVisible;
+    }).map(function (col) { return col.key; });
+  }
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -180,9 +227,20 @@
     return badge;
   }
 
+  function statusPill(kind, label) {
+    var pill = el("span", "status-pill status-" + (kind || "default"));
+    pill.textContent = label || "";
+    return pill;
+  }
+
   function formatDateTime(value) {
     if (!value) return "尚未登入";
     return new Date(value).toLocaleString("zh-Hant", { hour12: false });
+  }
+
+  function formatWhen(value) {
+    if (!value) return "—";
+    return new Date(value).toLocaleString("zh-Hant", { timeZone: "Asia/Taipei", hour12: false });
   }
 
   function userErrorMessage(code) {
@@ -209,6 +267,162 @@
     meta.appendChild(el("span", "whoami-user", "@" + me.username));
     whoami.appendChild(meta);
     whoami.appendChild(roleBadge(me.role));
+  }
+
+  function loadVisibleColumns(storageKey, columns, currentKeys) {
+    try {
+      var raw = localStorage.getItem(storageKey);
+      if (!raw) return currentKeys;
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return currentKeys;
+      var allowed = {};
+      columns.forEach(function (col) { allowed[col.key] = true; });
+      var next = parsed.filter(function (key) { return allowed[key]; });
+      return next.length ? next : currentKeys;
+    } catch (err) {
+      return currentKeys;
+    }
+  }
+
+  function saveVisibleColumns(storageKey, keys) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(keys));
+    } catch (err) { /* ignore quota */ }
+  }
+
+  function visibleColumnsOf(columns, visibleKeys) {
+    return columns.filter(function (col) {
+      return visibleKeys.indexOf(col.key) !== -1;
+    });
+  }
+
+  function renderColumnPanel(panelEl, columns, getKeys, setKeys, storageKey, onChange) {
+    if (!panelEl) return;
+    panelEl.textContent = "";
+    columns.forEach(function (col) {
+      var label = el("label", "col-settings-item");
+      var input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = getKeys().indexOf(col.key) !== -1;
+      input.addEventListener("change", function () {
+        var keys = getKeys().slice();
+        if (input.checked) {
+          if (keys.indexOf(col.key) === -1) keys.push(col.key);
+        } else {
+          if (keys.length <= 1) {
+            input.checked = true;
+            return;
+          }
+          keys = keys.filter(function (key) { return key !== col.key; });
+        }
+        setKeys(keys);
+        saveVisibleColumns(storageKey, keys);
+        onChange();
+      });
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(col.label));
+      panelEl.appendChild(label);
+    });
+  }
+
+  function setColPanelOpen(panelEl, buttonEl, open) {
+    if (!panelEl || !buttonEl) return;
+    panelEl.hidden = !open;
+    buttonEl.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function bindColSettingsToggle(buttonEl, panelEl) {
+    if (!buttonEl || !panelEl) return;
+    buttonEl.addEventListener("click", function (event) {
+      event.stopPropagation();
+      setColPanelOpen(panelEl, buttonEl, panelEl.hidden);
+    });
+    document.addEventListener("click", function (event) {
+      if (!panelEl.hidden && !panelEl.contains(event.target) && event.target !== buttonEl) {
+        setColPanelOpen(panelEl, buttonEl, false);
+      }
+    });
+  }
+
+  function compareSortValues(av, bv, sortType, dir) {
+    if (sortType === "date" || sortType === "number") {
+      return (Number(av) - Number(bv)) * dir;
+    }
+    av = String(av == null ? "" : av).toLowerCase();
+    bv = String(bv == null ? "" : bv).toLowerCase();
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  }
+
+  function bindSortableTh(th, sortBy, sortDir, colKey, onSort) {
+    th.setAttribute("role", "button");
+    th.tabIndex = 0;
+    if (sortBy === colKey) {
+      th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+      th.setAttribute("aria-sort", sortDir === "asc" ? "ascending" : "descending");
+    }
+    th.addEventListener("click", onSort);
+    th.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onSort();
+      }
+    });
+  }
+
+  function renderPager(pagerEl, total, page, pageSize, onPage) {
+    if (!pagerEl) return page;
+    pagerEl.textContent = "";
+    var pagesCount = Math.max(1, Math.ceil(total / pageSize));
+    var current = page;
+    if (current > pagesCount) current = pagesCount;
+    var info = el("span", "muted", "共 " + total + " 筆，第 " + current + " / " + pagesCount + " 頁");
+    pagerEl.appendChild(info);
+    var prev = el("button", "ghost", "上一頁");
+    prev.type = "button";
+    prev.disabled = current <= 1;
+    prev.addEventListener("click", function () { onPage(current - 1); });
+    var next = el("button", "ghost", "下一頁");
+    next.type = "button";
+    next.disabled = current >= pagesCount;
+    next.addEventListener("click", function () { onPage(current + 1); });
+    pagerEl.appendChild(prev);
+    pagerEl.appendChild(next);
+    return current;
+  }
+
+  function appendActionButtons(parent, opts) {
+    if (opts.onEdit) {
+      var edit = el("button", "btn-icon edit");
+      edit.type = "button";
+      edit.title = "編輯";
+      edit.setAttribute("aria-label", "編輯");
+      edit.innerHTML = ICON_EDIT;
+      edit.addEventListener("click", opts.onEdit);
+      parent.appendChild(edit);
+    }
+    if (opts.openHref) {
+      var open = el("a", "btn-icon open");
+      open.href = opts.openHref;
+      open.target = "_blank";
+      open.rel = "noopener";
+      open.title = "開啟";
+      open.setAttribute("aria-label", "開啟");
+      open.innerHTML = ICON_OPEN;
+      parent.appendChild(open);
+    }
+    if (opts.onDelete) {
+      var remove = el("button", "btn-icon delete");
+      remove.type = "button";
+      remove.title = opts.deleteTitle || "刪除";
+      remove.setAttribute("aria-label", "刪除");
+      remove.disabled = !!opts.deleteDisabled;
+      remove.addEventListener("click", opts.onDelete);
+      remove.innerHTML = ICON_DELETE;
+      parent.appendChild(remove);
+    }
+    return parent;
   }
 
   function bindAvatarPreview(form) {
@@ -284,71 +498,14 @@
     return row[key] == null ? "" : row[key];
   }
 
-  function visibleEnquiryColumns() {
-    return ENQUIRY_COLUMNS.filter(function (col) {
-      return enquiryVisibleKeys.indexOf(col.key) !== -1;
-    });
-  }
-
-  function loadEnquiryVisibleColumns() {
-    try {
-      var raw = localStorage.getItem(ENQUIRY_COLUMNS_KEY);
-      if (!raw) return;
-      var parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed) || !parsed.length) return;
-      var allowed = {};
-      ENQUIRY_COLUMNS.forEach(function (col) { allowed[col.key] = true; });
-      var next = parsed.filter(function (key) { return allowed[key]; });
-      if (next.length) enquiryVisibleKeys = next;
-    } catch (err) { /* ignore corrupt prefs */ }
-  }
-
-  function saveEnquiryVisibleColumns() {
-    try {
-      localStorage.setItem(ENQUIRY_COLUMNS_KEY, JSON.stringify(enquiryVisibleKeys));
-    } catch (err) { /* ignore quota */ }
-  }
-
-  function renderEnquiryColumnPanel() {
-    if (!enquiryColPanel) return;
-    enquiryColPanel.textContent = "";
-    ENQUIRY_COLUMNS.forEach(function (col) {
-      var label = el("label", "col-settings-item");
-      var input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = enquiryVisibleKeys.indexOf(col.key) !== -1;
-      input.addEventListener("change", function () {
-        if (input.checked) {
-          if (enquiryVisibleKeys.indexOf(col.key) === -1) enquiryVisibleKeys.push(col.key);
-        } else {
-          if (enquiryVisibleKeys.length <= 1) {
-            input.checked = true;
-            return;
-          }
-          enquiryVisibleKeys = enquiryVisibleKeys.filter(function (key) { return key !== col.key; });
-        }
-        saveEnquiryVisibleColumns();
-        renderEnquiries();
-      });
-      label.appendChild(input);
-      label.appendChild(document.createTextNode(col.label));
-      enquiryColPanel.appendChild(label);
-    });
-  }
-
-  function setEnquiryColPanelOpen(open) {
-    if (!enquiryColPanel || !enquiryColumnsBtn) return;
-    enquiryColPanel.hidden = !open;
-    enquiryColumnsBtn.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
   function filteredEnquiries() {
     var q = (enquirySearch.value || "").trim().toLowerCase();
     var rows = enquiries.filter(function (row) {
       if (!q) return true;
       var blob = [
         row.firstName, row.lastName, row.company, row.email, row.phone,
-        row.country, enquiryServicesText(row), row.message, row.locale
+        row.country, enquiryServicesText(row), row.message, row.locale,
+        statusLabel[row.status] || row.status
       ].join(" ").toLowerCase();
       return blob.indexOf(q) !== -1;
     });
@@ -356,54 +513,26 @@
     var sortType = col ? col.sortType : "string";
     var dir = enquirySortDir === "asc" ? 1 : -1;
     rows.sort(function (a, b) {
-      var av = enquirySortValue(a, enquirySortBy);
-      var bv = enquirySortValue(b, enquirySortBy);
-      if (sortType === "date" || sortType === "number") {
-        return (Number(av) - Number(bv)) * dir;
-      }
-      av = String(av).toLowerCase();
-      bv = String(bv).toLowerCase();
-      if (av < bv) return -1 * dir;
-      if (av > bv) return 1 * dir;
-      return 0;
+      return compareSortValues(
+        enquirySortValue(a, enquirySortBy),
+        enquirySortValue(b, enquirySortBy),
+        sortType,
+        dir
+      );
     });
     return rows;
   }
 
-  function renderEnquiryPager(total, pageSize) {
-    enquiryPager.textContent = "";
-    var pagesCount = Math.max(1, Math.ceil(total / pageSize));
-    if (enquiryPage > pagesCount) enquiryPage = pagesCount;
-    var info = el("span", "muted", "共 " + total + " 筆，第 " + enquiryPage + " / " + pagesCount + " 頁");
-    enquiryPager.appendChild(info);
-    var prev = el("button", "ghost", "上一頁");
-    prev.type = "button";
-    prev.disabled = enquiryPage <= 1;
-    prev.addEventListener("click", function () {
-      enquiryPage -= 1;
-      renderEnquiries();
-    });
-    var next = el("button", "ghost", "下一頁");
-    next.type = "button";
-    next.disabled = enquiryPage >= pagesCount;
-    next.addEventListener("click", function () {
-      enquiryPage += 1;
-      renderEnquiries();
-    });
-    enquiryPager.appendChild(prev);
-    enquiryPager.appendChild(next);
-  }
-
-  function formatEnquiryWhen(value) {
-    return new Date(value).toLocaleString("zh-Hant", { timeZone: "Asia/Taipei", hour12: false });
-  }
-
   function renderEnquiryCell(row, key) {
-    if (key === "createdAt") return el("td", "", formatEnquiryWhen(row.createdAt));
+    if (key === "createdAt") return el("td", "", formatWhen(row.createdAt));
     if (key === "name") return el("td", "", enquiryName(row));
     if (key === "company") return el("td", "", row.company || "");
     if (key === "email") return el("td", "", row.email || "");
-    if (key === "status") return el("td", "", statusLabel[row.status] || row.status || "");
+    if (key === "status") {
+      var td = el("td");
+      td.appendChild(statusPill(row.status || "new", statusLabel[row.status] || row.status || ""));
+      return td;
+    }
     if (key === "phone") return el("td", "", row.phone || "");
     if (key === "country") return el("td", "", row.country || "未填");
     if (key === "services") return el("td", "", enquiryServicesText(row) || "未填");
@@ -440,7 +569,7 @@
       "</select></label>";
     if (row) {
       if (row.createdAt) {
-        form.insertBefore(detailLine("時間", formatEnquiryWhen(row.createdAt)), form.firstChild);
+        form.insertBefore(detailLine("時間", formatWhen(row.createdAt)), form.firstChild);
       }
       form.querySelector("[name=firstName]").value = row.firstName || "";
       form.querySelector("[name=lastName]").value = row.lastName || "";
@@ -482,8 +611,11 @@
     listEl.textContent = "";
     var rows = filteredEnquiries();
     var pageSize = Number(enquiryPageSize.value) || 20;
-    var columns = visibleEnquiryColumns();
-    renderEnquiryPager(rows.length, pageSize);
+    var columns = visibleColumnsOf(ENQUIRY_COLUMNS, enquiryVisibleKeys);
+    enquiryPage = renderPager(enquiryPager, rows.length, enquiryPage, pageSize, function (next) {
+      enquiryPage = next;
+      renderEnquiries();
+    });
     if (!rows.length) {
       listEl.appendChild(el("p", "muted", "目前沒有詢問。"));
       return;
@@ -495,13 +627,7 @@
     columns.forEach(function (col) {
       var th = el("th", col.sortable ? "sortable" : "", col.label);
       if (col.sortable) {
-        th.setAttribute("role", "button");
-        th.tabIndex = 0;
-        if (enquirySortBy === col.key) {
-          th.classList.add(enquirySortDir === "asc" ? "sort-asc" : "sort-desc");
-          th.setAttribute("aria-sort", enquirySortDir === "asc" ? "ascending" : "descending");
-        }
-        var toggle = function () {
+        bindSortableTh(th, enquirySortBy, enquirySortDir, col.key, function () {
           if (enquirySortBy === col.key) {
             enquirySortDir = enquirySortDir === "asc" ? "desc" : "asc";
           } else {
@@ -510,13 +636,6 @@
           }
           enquiryPage = 1;
           renderEnquiries();
-        };
-        th.addEventListener("click", toggle);
-        th.addEventListener("keydown", function (event) {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            toggle();
-          }
         });
       }
       head.appendChild(th);
@@ -529,19 +648,15 @@
         tr.appendChild(renderEnquiryCell(row, col.key));
       });
       var actions = el("td", "row-actions");
-      var edit = el("button", "ghost", "編輯");
-      edit.type = "button";
-      edit.addEventListener("click", function () {
-        openModal("編輯詢問", enquiryForm(row), "enquiry-edit", row);
+      appendActionButtons(actions, {
+        onEdit: function () {
+          openModal("編輯詢問", enquiryForm(row), "enquiry-edit", row);
+        },
+        onDelete: function () {
+          if (!window.confirm("刪除這筆詢問？")) return;
+          api("/api/admin/enquiries/" + row.id, { method: "DELETE" }).then(loadEnquiries);
+        }
       });
-      var remove = el("button", "ghost", "刪除");
-      remove.type = "button";
-      remove.addEventListener("click", function () {
-        if (!window.confirm("刪除這筆詢問？")) return;
-        api("/api/admin/enquiries/" + row.id, { method: "DELETE" }).then(loadEnquiries);
-      });
-      actions.appendChild(edit);
-      actions.appendChild(remove);
       tr.appendChild(actions);
       table.appendChild(tr);
     });
@@ -613,13 +728,27 @@
     });
   }
 
+  function filteredMedia() {
+    var q = ((mediaSearch && mediaSearch.value) || "").trim().toLowerCase();
+    if (!q) return mediaItems.slice();
+    return mediaItems.filter(function (item) {
+      var blob = [item.filename, item.key, item.url].join(" ").toLowerCase();
+      return blob.indexOf(q) !== -1;
+    });
+  }
+
   function renderMedia() {
     mediaList.textContent = "";
+    var items = filteredMedia();
     if (!mediaItems.length) {
       mediaList.appendChild(el("p", "muted", "尚未上傳圖片。"));
       return;
     }
-    mediaItems.forEach(function (item) {
+    if (!items.length) {
+      mediaList.appendChild(el("p", "muted", "沒有符合搜尋條件的圖片。"));
+      return;
+    }
+    items.forEach(function (item) {
       var card = el("article", "media-card");
       var img = document.createElement("img");
       img.src = item.url;
@@ -642,8 +771,11 @@
           window.prompt("複製網址", absolute);
         }
       });
-      var remove = el("button", "ghost", "刪除");
+      var remove = el("button", "btn-icon delete");
       remove.type = "button";
+      remove.title = "刪除";
+      remove.setAttribute("aria-label", "刪除");
+      remove.innerHTML = ICON_DELETE;
       remove.addEventListener("click", function () {
         if (!window.confirm("刪除這張圖片？")) return;
         api("/api/admin/media/" + item.id, { method: "DELETE" }).then(loadMedia);
@@ -665,14 +797,40 @@
     });
   }
 
+  function pageSortValue(page, key) {
+    if (key === "status") return pageStatusLabel[page.status] || page.status || "";
+    if (key === "updatedAt") return Number(page.updatedAt) || 0;
+    return page[key] == null ? "" : page[key];
+  }
+
   function filteredPages() {
     var q = (pageSearch.value || "").trim().toLowerCase();
     var status = pageStatusFilter.value;
-    return pages.filter(function (page) {
+    var rows = pages.filter(function (page) {
       if (status && page.status !== status) return false;
       if (!q) return true;
-      return (page.title + " " + page.slug).toLowerCase().indexOf(q) !== -1;
+      return (page.title + " " + page.slug + " " + page.locale + " " + (pageStatusLabel[page.status] || "")).toLowerCase().indexOf(q) !== -1;
     });
+    var col = PAGE_COLUMNS.find(function (item) { return item.key === pageSortBy; });
+    var sortType = col ? col.sortType : "string";
+    var dir = pageSortDir === "asc" ? 1 : -1;
+    rows.sort(function (a, b) {
+      return compareSortValues(pageSortValue(a, pageSortBy), pageSortValue(b, pageSortBy), sortType, dir);
+    });
+    return rows;
+  }
+
+  function renderPageCell(page, key) {
+    if (key === "title") return el("td", "", page.title || "");
+    if (key === "locale") return el("td", "", page.locale || "");
+    if (key === "slug") return el("td", "", page.slug || "");
+    if (key === "status") {
+      var td = el("td");
+      td.appendChild(statusPill(page.status || "draft", pageStatusLabel[page.status] || page.status || ""));
+      return td;
+    }
+    if (key === "updatedAt") return el("td", "", formatWhen(page.updatedAt));
+    return el("td", "", "");
   }
 
   function pageForm(page) {
@@ -700,42 +858,54 @@
   function renderPages() {
     pageList.textContent = "";
     var rows = filteredPages();
+    var pageSize = Number(pagePageSize && pagePageSize.value) || 20;
+    var columns = visibleColumnsOf(PAGE_COLUMNS, pageVisibleKeys);
+    pagePage = renderPager(pagePager, rows.length, pagePage, pageSize, function (next) {
+      pagePage = next;
+      renderPages();
+    });
     if (!rows.length) {
       pageList.appendChild(el("p", "muted", "目前沒有動態頁面。"));
       return;
     }
+    var start = (pagePage - 1) * pageSize;
+    var slice = rows.slice(start, start + pageSize);
     var table = el("table", "grid");
     var head = el("tr");
-    ["標題", "語系", "Slug", "狀態", "更新", ""].forEach(function (label) {
-      head.appendChild(el("th", "", label));
+    columns.forEach(function (col) {
+      var th = el("th", col.sortable ? "sortable" : "", col.label);
+      if (col.sortable) {
+        bindSortableTh(th, pageSortBy, pageSortDir, col.key, function () {
+          if (pageSortBy === col.key) {
+            pageSortDir = pageSortDir === "asc" ? "desc" : "asc";
+          } else {
+            pageSortBy = col.key;
+            pageSortDir = "asc";
+          }
+          pagePage = 1;
+          renderPages();
+        });
+      }
+      head.appendChild(th);
     });
+    head.appendChild(el("th", "actions-col", "操作"));
     table.appendChild(head);
-    rows.forEach(function (page) {
+    slice.forEach(function (page) {
       var tr = el("tr");
-      tr.appendChild(el("td", "", page.title));
-      tr.appendChild(el("td", "", page.locale));
-      tr.appendChild(el("td", "", page.slug));
-      tr.appendChild(el("td", "", pageStatusLabel[page.status] || page.status));
-      tr.appendChild(el("td", "", new Date(page.updatedAt).toLocaleString("zh-Hant", { hour12: false })));
+      columns.forEach(function (col) {
+        tr.appendChild(renderPageCell(page, col.key));
+      });
       var actions = el("td", "row-actions");
-      var edit = el("button", "ghost", "編輯");
-      edit.type = "button";
-      edit.addEventListener("click", function () {
-        openModal("編輯頁面", pageForm(page), "page-edit", page);
+      appendActionButtons(actions, {
+        onEdit: function () {
+          openModal("編輯頁面", pageForm(page), "page-edit", page);
+        },
+        openHref: page.path,
+        onDelete: function () {
+          if (!window.confirm("刪除這個頁面？")) return;
+          api("/api/admin/pages/" + page.id, { method: "DELETE" }).then(loadPages);
+        }
       });
-      var open = el("a", "ghost linkish", "開啟");
-      open.href = page.path;
-      open.target = "_blank";
-      open.rel = "noopener";
-      var remove = el("button", "ghost", "刪除");
-      remove.type = "button";
-      remove.addEventListener("click", function () {
-        if (!window.confirm("刪除這個頁面？")) return;
-        api("/api/admin/pages/" + page.id, { method: "DELETE" }).then(loadPages);
-      });
-      actions.appendChild(edit);
-      actions.appendChild(open);
-      actions.appendChild(remove);
       tr.appendChild(actions);
       table.appendChild(tr);
     });
@@ -745,6 +915,7 @@
   function loadPages() {
     api("/api/admin/pages").then(function (data) {
       pages = data.pages || [];
+      pagePage = 1;
       renderPages();
     }).catch(function () {
       pageList.textContent = "頁面清單讀取失敗。";
@@ -784,13 +955,56 @@
     return form;
   }
 
+  function userSortValue(user, key) {
+    if (key === "displayName") return displayNameOf(user);
+    if (key === "role") return roleLabel[user.role] || user.role || "";
+    if (key === "lastLoginAt" || key === "createdAt") return Number(user[key]) || 0;
+    return user[key] == null ? "" : user[key];
+  }
+
   function filteredUsers() {
     var q = ((userSearch && userSearch.value) || "").trim().toLowerCase();
-    if (!q) return users.slice();
-    return users.filter(function (user) {
-      return (user.username || "").toLowerCase().indexOf(q) !== -1 ||
-        (user.displayName || "").toLowerCase().indexOf(q) !== -1;
+    var role = (userRoleFilter && userRoleFilter.value) || "";
+    var rows = users.filter(function (user) {
+      if (role && user.role !== role) return false;
+      if (!q) return true;
+      var blob = [
+        user.username,
+        user.displayName,
+        roleLabel[user.role] || user.role
+      ].join(" ").toLowerCase();
+      return blob.indexOf(q) !== -1;
     });
+    var col = USER_COLUMNS.find(function (item) { return item.key === userSortBy; });
+    var sortType = col ? col.sortType : "string";
+    var dir = userSortDir === "asc" ? 1 : -1;
+    rows.sort(function (a, b) {
+      return compareSortValues(userSortValue(a, userSortBy), userSortValue(b, userSortBy), sortType, dir);
+    });
+    return rows;
+  }
+
+  function renderUserCell(user, key) {
+    if (key === "username") {
+      var tdUser = el("td");
+      var wrap = el("div", "user-cell");
+      wrap.appendChild(avatarNode(user, "avatar-sm"));
+      var meta = el("div", "user-cell-meta");
+      meta.appendChild(el("strong", "", "@" + (user.username || "")));
+      if (Number(user.id) === Number(me.id)) meta.appendChild(el("span", "you-chip", "你"));
+      wrap.appendChild(meta);
+      tdUser.appendChild(wrap);
+      return tdUser;
+    }
+    if (key === "displayName") return el("td", "", displayNameOf(user));
+    if (key === "role") {
+      var tdRole = el("td");
+      tdRole.appendChild(roleBadge(user.role));
+      return tdRole;
+    }
+    if (key === "lastLoginAt") return el("td", "", formatDateTime(user.lastLoginAt));
+    if (key === "createdAt") return el("td", "", formatWhen(user.createdAt));
+    return el("td", "", "");
   }
 
   function renderUsers() {
@@ -816,60 +1030,76 @@
       });
       empty.appendChild(cta);
       userList.appendChild(empty);
+      if (userPager) userPager.textContent = "";
       return;
     }
 
     var list = filteredUsers();
+    var pageSize = Number(userPageSize && userPageSize.value) || 20;
+    var columns = visibleColumnsOf(USER_COLUMNS, userVisibleKeys);
+    userPage = renderPager(userPager, list.length, userPage, pageSize, function (next) {
+      userPage = next;
+      renderUsers();
+    });
     if (!list.length) {
       userList.appendChild(el("p", "muted", "沒有符合搜尋條件的使用者。"));
       return;
     }
 
-    var wrap = el("div", "user-cards");
-    list.forEach(function (user) {
-      var card = el("article", "user-card" + (Number(user.id) === Number(me.id) ? " is-me" : ""));
-      card.appendChild(avatarNode(user, "avatar-md"));
-      var body = el("div", "user-card-body");
-      var titleRow = el("div", "user-card-title");
-      titleRow.appendChild(el("strong", "", displayNameOf(user)));
-      if (Number(user.id) === Number(me.id)) titleRow.appendChild(el("span", "you-chip", "你"));
-      titleRow.appendChild(roleBadge(user.role));
-      body.appendChild(titleRow);
-      body.appendChild(el("p", "muted", "@" + user.username));
-      var meta = el("div", "user-card-meta");
-      meta.appendChild(el("span", "", "最後登入：" + formatDateTime(user.lastLoginAt)));
-      meta.appendChild(el("span", "", "建立：" + formatDateTime(user.createdAt)));
-      body.appendChild(meta);
-      card.appendChild(body);
-
-      var actions = el("div", "row-actions");
-      var edit = el("button", "ghost", "編輯");
-      edit.type = "button";
-      edit.addEventListener("click", function () {
-        openModal("編輯使用者", userForm(user), "user-edit", user);
-      });
-      var remove = el("button", "ghost", "刪除");
-      remove.type = "button";
-      remove.disabled = Number(user.id) === Number(me.id);
-      remove.title = remove.disabled ? "不能刪除自己的帳號" : "";
-      remove.addEventListener("click", function () {
-        if (!window.confirm("刪除使用者 " + displayNameOf(user) + "（@" + user.username + "）？")) return;
-        api("/api/admin/users/" + user.id, { method: "DELETE" }).then(loadUsers).catch(function (err) {
-          window.alert(userErrorMessage(err.code));
+    var start = (userPage - 1) * pageSize;
+    var slice = list.slice(start, start + pageSize);
+    var table = el("table", "grid");
+    var head = el("tr");
+    columns.forEach(function (col) {
+      var th = el("th", col.sortable ? "sortable" : "", col.label);
+      if (col.sortable) {
+        bindSortableTh(th, userSortBy, userSortDir, col.key, function () {
+          if (userSortBy === col.key) {
+            userSortDir = userSortDir === "asc" ? "desc" : "asc";
+          } else {
+            userSortBy = col.key;
+            userSortDir = "asc";
+          }
+          userPage = 1;
+          renderUsers();
         });
-      });
-      actions.appendChild(edit);
-      actions.appendChild(remove);
-      card.appendChild(actions);
-      wrap.appendChild(card);
+      }
+      head.appendChild(th);
     });
-    userList.appendChild(wrap);
+    head.appendChild(el("th", "actions-col", "操作"));
+    table.appendChild(head);
+    slice.forEach(function (user) {
+      var tr = el("tr");
+      if (Number(user.id) === Number(me.id)) tr.classList.add("is-me");
+      columns.forEach(function (col) {
+        tr.appendChild(renderUserCell(user, col.key));
+      });
+      var isSelf = Number(user.id) === Number(me.id);
+      var actions = el("td", "row-actions");
+      appendActionButtons(actions, {
+        onEdit: function () {
+          openModal("編輯使用者", userForm(user), "user-edit", user);
+        },
+        onDelete: function () {
+          if (!window.confirm("刪除使用者 " + displayNameOf(user) + "（@" + user.username + "）？")) return;
+          api("/api/admin/users/" + user.id, { method: "DELETE" }).then(loadUsers).catch(function (err) {
+            window.alert(userErrorMessage(err.code));
+          });
+        },
+        deleteDisabled: isSelf,
+        deleteTitle: isSelf ? "不能刪除自己的帳號" : "刪除"
+      });
+      tr.appendChild(actions);
+      table.appendChild(tr);
+    });
+    userList.appendChild(table);
   }
 
   function loadUsers() {
     if (me.role !== "admin") return;
     api("/api/admin/users").then(function (data) {
       users = data.users || [];
+      userPage = 1;
       renderUsers();
     }).catch(function () {
       userList.textContent = "使用者清單讀取失敗。";
@@ -1047,20 +1277,9 @@
     enquiryPage = 1;
     renderEnquiries();
   });
-  if (enquiryReloadBtn) {
-    enquiryReloadBtn.addEventListener("click", loadEnquiries);
-  }
-  if (enquiryColumnsBtn && enquiryColPanel) {
-    enquiryColumnsBtn.addEventListener("click", function (event) {
-      event.stopPropagation();
-      setEnquiryColPanelOpen(enquiryColPanel.hidden);
-    });
-    document.addEventListener("click", function (event) {
-      if (!enquiryColPanel.hidden && !enquiryColPanel.contains(event.target) && event.target !== enquiryColumnsBtn) {
-        setEnquiryColPanelOpen(false);
-      }
-    });
-  }
+  if (enquiryReloadBtn) enquiryReloadBtn.addEventListener("click", loadEnquiries);
+  bindColSettingsToggle(enquiryColumnsBtn, enquiryColPanel);
+
   localeSelect.addEventListener("change", function () {
     if (contentDirty && !window.confirm("文案尚未儲存，確定切換語系？")) {
       return;
@@ -1134,6 +1353,12 @@
       mediaStatus.textContent = msg;
     });
   });
+  if (mediaSearch) {
+    mediaSearch.addEventListener("input", function () {
+      debounce("media", renderMedia);
+    });
+  }
+  if (mediaReloadBtn) mediaReloadBtn.addEventListener("click", loadMedia);
 
   var enquiryCreateBtn = document.getElementById("enquiry-create");
   if (enquiryCreateBtn) {
@@ -1145,15 +1370,51 @@
   document.getElementById("page-create").addEventListener("click", function () {
     openModal("新增頁面", pageForm(null), "page-create", null);
   });
-  pageSearch.addEventListener("input", function () { debounce("pages", renderPages); });
-  pageStatusFilter.addEventListener("change", renderPages);
+  pageSearch.addEventListener("input", function () {
+    debounce("pages", function () {
+      pagePage = 1;
+      renderPages();
+    });
+  });
+  pageStatusFilter.addEventListener("change", function () {
+    pagePage = 1;
+    renderPages();
+  });
+  if (pagePageSize) {
+    pagePageSize.addEventListener("change", function () {
+      pagePage = 1;
+      renderPages();
+    });
+  }
+  if (pageReloadBtn) pageReloadBtn.addEventListener("click", loadPages);
+  bindColSettingsToggle(pageColumnsBtn, pageColPanel);
 
   document.getElementById("user-create").addEventListener("click", function () {
     openModal("新增使用者", userForm(null), "user-create", null);
   });
   if (userSearch) {
-    userSearch.addEventListener("input", function () { debounce("users", renderUsers); });
+    userSearch.addEventListener("input", function () {
+      debounce("users", function () {
+        userPage = 1;
+        renderUsers();
+      });
+    });
   }
+  if (userRoleFilter) {
+    userRoleFilter.addEventListener("change", function () {
+      userPage = 1;
+      renderUsers();
+    });
+  }
+  if (userPageSize) {
+    userPageSize.addEventListener("change", function () {
+      userPage = 1;
+      renderUsers();
+    });
+  }
+  if (userReloadBtn) userReloadBtn.addEventListener("click", loadUsers);
+  bindColSettingsToggle(userColumnsBtn, userColPanel);
+
   if (profileEditBtn) {
     profileEditBtn.addEventListener("click", function () {
       openModal("我的帳號", profileForm(), "profile-edit", me);
@@ -1172,8 +1433,34 @@
     event.returnValue = "";
   });
 
-  loadEnquiryVisibleColumns();
-  renderEnquiryColumnPanel();
+  enquiryVisibleKeys = loadVisibleColumns(ENQUIRY_COLUMNS_KEY, ENQUIRY_COLUMNS, enquiryVisibleKeys);
+  pageVisibleKeys = loadVisibleColumns(PAGE_COLUMNS_KEY, PAGE_COLUMNS, pageVisibleKeys);
+  userVisibleKeys = loadVisibleColumns(USER_COLUMNS_KEY, USER_COLUMNS, userVisibleKeys);
+
+  renderColumnPanel(
+    enquiryColPanel,
+    ENQUIRY_COLUMNS,
+    function () { return enquiryVisibleKeys; },
+    function (keys) { enquiryVisibleKeys = keys; },
+    ENQUIRY_COLUMNS_KEY,
+    renderEnquiries
+  );
+  renderColumnPanel(
+    pageColPanel,
+    PAGE_COLUMNS,
+    function () { return pageVisibleKeys; },
+    function (keys) { pageVisibleKeys = keys; },
+    PAGE_COLUMNS_KEY,
+    renderPages
+  );
+  renderColumnPanel(
+    userColPanel,
+    USER_COLUMNS,
+    function () { return userVisibleKeys; },
+    function (keys) { userVisibleKeys = keys; },
+    USER_COLUMNS_KEY,
+    renderUsers
+  );
 
   api("/api/admin/me").then(function (data) {
     refreshMeFrom(data);
