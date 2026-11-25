@@ -23,6 +23,24 @@
   var ICON_EDIT = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M11.7 1.3a1.5 1.5 0 0 1 2.1 2.1L5.6 11.6 2 12.8l1.2-3.6L11.7 1.3zm-1 1.4L3.9 9.5l-.5 1.5 1.5-.5 6.8-6.8-.9-.9z\"/></svg>";
   var ICON_DELETE = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M6 2h4l.5 1H14v1.5H2V3h3.5L6 2zm1 4v6H5.5V6H7zm3.5 0v6H9V6h1.5zM3.5 4.5h9l-.7 9.2A1.5 1.5 0 0 1 10.3 15H5.7a1.5 1.5 0 0 1-1.5-1.3L3.5 4.5z\"/></svg>";
   var ICON_OPEN = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M9 2h5v5h-1.5V4.56L7.53 9.53 6.47 8.47 11.44 3.5H9V2zM3 4.5h4V6H4.5v5.5h5.5V10H11v3H3v-8.5z\"/></svg>";
+  var ICON_CHEVRON = "<svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M6 3.5 10.5 8 6 12.5v-9z\"/></svg>";
+  var ICON_FOLDER = "<svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M1.5 3.5h4.2l1.2 1.4H14.5v7.6h-13V3.5z\"/></svg>";
+  var ICON_FILE = "<svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M4 1.5h5.2L13 5.3V14.5H4V1.5zm5 1.2V5h2.3L9 2.7z\"/></svg>";
+
+  var PANEL_LABELS = {
+    enquiries: "客戶詢問",
+    content: "網站內容",
+    media: "媒體",
+    pages: "動態頁面",
+    users: "使用者",
+    menus: "選單管理"
+  };
+  var PANEL_TARGETS = Object.keys(PANEL_LABELS);
+  var MENU_KIND_LABEL = { group: "群組", item: "功能" };
+  var EXPLORER_OPEN_KEY = "admin-explorer-open";
+  var EXPLORER_COLLAPSE_KEY = "admin-explorer-collapsed";
+  var MENU_TREE_OPEN_KEY = "admin-menu-tree-open";
+  var ICON_ADD = "<svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M7.25 2.5h1.5v4.75H13.5v1.5H8.75V13.5h-1.5V8.75H2.5v-1.5h4.75V2.5z\"/></svg>";
 
   var ENQUIRY_COLUMNS = [
     { key: "createdAt", label: "時間", defaultVisible: true, sortable: true, sortType: "date" },
@@ -61,6 +79,11 @@
   var mediaItems = [];
   var pages = [];
   var users = [];
+  var menuRows = [];
+  var activeTarget = "enquiries";
+  var explorerOpen = {};
+  var menuTreeOpen = {};
+  var syncingHistory = false;
   var AVATAR_COLORS = ["#0a1b33", "#1f4b6e", "#0b5f66", "#3e5168", "#245b7a", "#167a74"];
   var enquiryPage = 1;
   var enquirySortBy = "createdAt";
@@ -112,6 +135,14 @@
   var userColPanel = document.getElementById("user-col-panel");
   var userColumnsBtn = document.getElementById("user-columns");
   var userReloadBtn = document.getElementById("user-reload");
+  var explorerTree = document.getElementById("explorer-tree");
+  var workspaceTitle = document.getElementById("workspace-title");
+  var explorerToggle = document.getElementById("explorer-toggle");
+  var adminShell = document.getElementById("admin-shell");
+  var menuList = document.getElementById("menu-list");
+  var menuSearch = document.getElementById("menu-search");
+  var menuKindFilter = document.getElementById("menu-kind-filter");
+  var menuReloadBtn = document.getElementById("menu-reload");
   var whoami = document.getElementById("whoami");
   var profileEditBtn = document.getElementById("profile-edit");
   var modal = document.getElementById("modal");
@@ -130,6 +161,25 @@
     if (className) node.className = className;
     if (text != null) node.textContent = text;
     return node;
+  }
+
+  function escHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char];
+    });
+  }
+
+  function fallbackMenus() {
+    return [
+      { id: -10, parentId: null, label: "內容管理", kind: "group", target: "", sortOrder: 10, adminOnly: false, enabled: true, locked: false },
+      { id: -11, parentId: null, label: "系統設定", kind: "group", target: "", sortOrder: 20, adminOnly: true, enabled: true, locked: false },
+      { id: -1, parentId: -10, label: "客戶詢問", kind: "item", target: "enquiries", sortOrder: 10, adminOnly: false, enabled: true, locked: false },
+      { id: -2, parentId: -10, label: "網站內容", kind: "item", target: "content", sortOrder: 20, adminOnly: false, enabled: true, locked: false },
+      { id: -3, parentId: -10, label: "媒體", kind: "item", target: "media", sortOrder: 30, adminOnly: false, enabled: true, locked: false },
+      { id: -4, parentId: -10, label: "動態頁面", kind: "item", target: "pages", sortOrder: 40, adminOnly: false, enabled: true, locked: false },
+      { id: -5, parentId: -11, label: "使用者", kind: "item", target: "users", sortOrder: 10, adminOnly: true, enabled: true, locked: false },
+      { id: -6, parentId: -11, label: "選單管理", kind: "item", target: "menus", sortOrder: 20, adminOnly: true, enabled: true, locked: true }
+    ];
   }
 
   function api(path, options) {
@@ -1131,6 +1181,560 @@
     applyRoleUi();
   }
 
+  function loadExplorerState() {
+    try {
+      var raw = localStorage.getItem(EXPLORER_OPEN_KEY);
+      explorerOpen = raw ? JSON.parse(raw) || {} : {};
+    } catch (err) {
+      explorerOpen = {};
+    }
+    try {
+      var menuRaw = localStorage.getItem(MENU_TREE_OPEN_KEY);
+      menuTreeOpen = menuRaw ? JSON.parse(menuRaw) || {} : {};
+    } catch (err) {
+      menuTreeOpen = {};
+    }
+    try {
+      if (adminShell && localStorage.getItem(EXPLORER_COLLAPSE_KEY) === "1") {
+        adminShell.classList.add("is-collapsed");
+      }
+    } catch (err) { /* ignore */ }
+  }
+
+  function saveExplorerOpen() {
+    try {
+      localStorage.setItem(EXPLORER_OPEN_KEY, JSON.stringify(explorerOpen));
+    } catch (err) { /* ignore quota */ }
+  }
+
+  function saveMenuTreeOpen() {
+    try {
+      localStorage.setItem(MENU_TREE_OPEN_KEY, JSON.stringify(menuTreeOpen));
+    } catch (err) { /* ignore quota */ }
+  }
+
+  function isGroupOpen(id) {
+    var key = String(id);
+    if (Object.prototype.hasOwnProperty.call(explorerOpen, key)) return !!explorerOpen[key];
+    return true;
+  }
+
+  function isMenuTreeOpen(id) {
+    var key = String(id);
+    if (Object.prototype.hasOwnProperty.call(menuTreeOpen, key)) return !!menuTreeOpen[key];
+    return true;
+  }
+
+  function panelPath(target) {
+    return "/admin/" + (target || "enquiries");
+  }
+
+  function targetFromPath(pathname) {
+    var match = String(pathname || "").match(/^\/admin(?:\/([^/]+))?\/?$/);
+    if (!match) return null;
+    if (!match[1]) return "enquiries";
+    return PANEL_TARGETS.indexOf(match[1]) >= 0 ? match[1] : null;
+  }
+
+  function syncDocumentTitle(target) {
+    document.title = labelForTarget(target) + "｜後台";
+  }
+
+  function syncUrl(target, mode) {
+    var next = panelPath(target);
+    if (location.pathname === next) {
+      syncDocumentTitle(target);
+      return;
+    }
+    syncingHistory = true;
+    try {
+      if (mode === "replace") history.replaceState({ target: target }, "", next);
+      else history.pushState({ target: target }, "", next);
+    } finally {
+      syncingHistory = false;
+    }
+    syncDocumentTitle(target);
+  }
+
+  function firstAvailableTarget(preferred) {
+    var rows = sidebarMenus();
+    if (preferred) {
+      var preferredRow = rows.find(function (item) {
+        return item.kind === "item" && item.target === preferred;
+      });
+      if (preferredRow) {
+        var preferredPanel = document.getElementById(preferred);
+        if (preferredPanel && !(preferredPanel.hasAttribute("data-admin-only") && me.role !== "admin")) {
+          return preferred;
+        }
+      }
+    }
+    var enquiries = rows.find(function (item) {
+      return item.kind === "item" && item.target === "enquiries";
+    });
+    if (enquiries) return "enquiries";
+    var first = rows.find(function (item) { return item.kind === "item" && item.target; });
+    return first ? first.target : "enquiries";
+  }
+
+  function menuById(id) {
+    return menuRows.find(function (item) { return item.id === id; }) || null;
+  }
+
+  function sidebarMenus() {
+    var byId = {};
+    menuRows.forEach(function (item) { byId[item.id] = item; });
+    var visible = menuRows.filter(function (item) {
+      if (!item.enabled) return false;
+      if (item.adminOnly && me.role !== "admin") return false;
+      var parentId = item.parentId;
+      var seen = {};
+      seen[item.id] = true;
+      while (parentId) {
+        if (seen[parentId]) return false;
+        seen[parentId] = true;
+        var parent = byId[parentId];
+        if (!parent || !parent.enabled) return false;
+        if (parent.adminOnly && me.role !== "admin") return false;
+        parentId = parent.parentId;
+      }
+      return true;
+    });
+    if (me.role === "admin") return visible;
+    var byParent = {};
+    visible.forEach(function (item) {
+      var key = item.parentId || 0;
+      if (!byParent[key]) byParent[key] = [];
+      byParent[key].push(item);
+    });
+    var keep = {};
+    function mark(parentKey) {
+      var any = false;
+      (byParent[parentKey] || []).forEach(function (child) {
+        if (child.kind === "item") {
+          keep[child.id] = true;
+          any = true;
+        } else if (mark(child.id)) {
+          keep[child.id] = true;
+          any = true;
+        }
+      });
+      return any;
+    }
+    mark(0);
+    return visible.filter(function (item) {
+      return item.kind === "item" || !!keep[item.id];
+    });
+  }
+
+  function labelForTarget(target) {
+    var found = menuRows.find(function (item) {
+      return item.kind === "item" && item.target === target;
+    });
+    if (found) return found.label;
+    return PANEL_LABELS[target] || target || "後台";
+  }
+
+  function showPanel(target, options) {
+    var opts = options || {};
+    if (!target) return false;
+    var panel = document.getElementById(target);
+    if (!panel) return false;
+    if (panel.hasAttribute("data-admin-only") && me.role !== "admin") return false;
+    if (!opts.silent && target !== "content" && activeTarget !== target && contentDirty) {
+      if (!window.confirm("文案尚未儲存，確定離開？")) return false;
+    }
+    document.querySelectorAll(".panel").forEach(function (item) { item.classList.remove("on"); });
+    panel.classList.add("on");
+    activeTarget = target;
+    if (workspaceTitle) workspaceTitle.textContent = labelForTarget(target);
+    if (opts.history !== "none") syncUrl(target, opts.history === "replace" ? "replace" : "push");
+    else syncDocumentTitle(target);
+    renderTree();
+    return true;
+  }
+
+  function renderTree() {
+    if (!explorerTree) return;
+    explorerTree.textContent = "";
+    var rows = sidebarMenus().slice().sort(function (a, b) {
+      return (a.sortOrder - b.sortOrder) || (a.id - b.id);
+    });
+    var byParent = {};
+    rows.forEach(function (item) {
+      var key = item.parentId || 0;
+      if (!byParent[key]) byParent[key] = [];
+      byParent[key].push(item);
+    });
+    if (!rows.length) {
+      explorerTree.appendChild(el("p", "explorer-empty", "沒有可顯示的功能"));
+      return;
+    }
+    function walk(parentId, depth) {
+      (byParent[parentId] || []).forEach(function (item) {
+        var open = item.kind === "group" && isGroupOpen(item.id);
+        var isActive = item.kind === "item" && item.target === activeTarget;
+        var row;
+        if (item.kind === "group") {
+          row = el("button", "explorer-row" + (open ? " is-open" : ""));
+          row.type = "button";
+          row.setAttribute("aria-expanded", open ? "true" : "false");
+          row.addEventListener("click", function () {
+            explorerOpen[String(item.id)] = !isGroupOpen(item.id);
+            saveExplorerOpen();
+            renderTree();
+          });
+        } else {
+          row = el("a", "explorer-row" + (isActive ? " on" : ""));
+          row.href = panelPath(item.target);
+          if (isActive) row.setAttribute("aria-current", "page");
+          row.addEventListener("click", function (event) {
+            if (event.defaultPrevented) return;
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            showPanel(item.target);
+          });
+        }
+        row.style.paddingLeft = (8 + depth * 12) + "px";
+        row.title = item.label;
+        var twist = el("span", "explorer-twist");
+        twist.innerHTML = item.kind === "group" ? ICON_CHEVRON : "";
+        var icon = el("span", "explorer-icon " + (item.kind === "group" ? "folder" : "file"));
+        icon.innerHTML = item.kind === "group" ? ICON_FOLDER : ICON_FILE;
+        var label = el("span", "explorer-label", item.label);
+        row.appendChild(twist);
+        row.appendChild(icon);
+        row.appendChild(label);
+        explorerTree.appendChild(row);
+        if (open) walk(item.id, depth + 1);
+      });
+    }
+    walk(0, 0);
+  }
+
+  function menuErrorMessage(code) {
+    if (code === "label") return "請填名稱。";
+    if (code === "kind") return "類型不正確。";
+    if (code === "target") return "請選擇對應功能。";
+    if (code === "parent") return "上層必須是群組。";
+    if (code === "cycle") return "不能把群組移到自己的下層。";
+    if (code === "depth") return "選單最多四層。";
+    if (code === "exists") return "這個功能已經在選單裡。";
+    if (code === "locked") return "選單管理不能改成其他功能，也不能停用。";
+    if (code === "has-children") return "請先移走或刪除裡面的項目。";
+    return "操作失敗，請稍後再試。";
+  }
+
+  function menuPath(item) {
+    var byId = {};
+    menuRows.forEach(function (row) { byId[row.id] = row; });
+    var names = [];
+    var cursor = item;
+    var guard = 0;
+    while (cursor && guard < 8) {
+      names.unshift(cursor.label);
+      cursor = cursor.parentId ? byId[cursor.parentId] : null;
+      guard += 1;
+    }
+    return names.join(" / ");
+  }
+
+  function descendantIds(id) {
+    var ids = {};
+    function walk(parentId) {
+      menuRows.forEach(function (item) {
+        if (item.parentId === parentId && !ids[item.id]) {
+          ids[item.id] = true;
+          walk(item.id);
+        }
+      });
+    }
+    if (id) walk(id);
+    return ids;
+  }
+
+  function nextSortOrder(parentId) {
+    var max = 0;
+    menuRows.forEach(function (item) {
+      var sameParent = (item.parentId || null) === (parentId || null);
+      if (sameParent && item.sortOrder > max) max = item.sortOrder;
+    });
+    return max + 10;
+  }
+
+  function menuForm(row, defaults) {
+    var preset = defaults || {};
+    var form = el("form", "modal-form");
+    form.dataset.locked = row && row.locked ? "1" : "0";
+    var blocked = descendantIds(row && row.id);
+    if (row) blocked[row.id] = true;
+    var parentOptions = "<option value=\"\">（最上層）</option>";
+    menuRows.filter(function (item) { return item.kind === "group" && !blocked[item.id]; })
+      .slice().sort(function (a, b) { return (a.sortOrder - b.sortOrder) || (a.id - b.id); })
+      .forEach(function (item) {
+        parentOptions += "<option value=\"" + item.id + "\">" + escHtml(menuPath(item)) + "</option>";
+      });
+    var targetOptions = "";
+    Object.keys(PANEL_LABELS).forEach(function (key) {
+      var used = menuRows.some(function (item) {
+        return item.kind === "item" && item.target === key && (!row || item.id !== row.id);
+      });
+      targetOptions += "<option value=\"" + key + "\"" + (used ? " disabled" : "") + ">" +
+        PANEL_LABELS[key] + (used ? "（已使用）" : "") + "</option>";
+    });
+    form.innerHTML =
+      "<label>名稱<input name=\"label\" required maxlength=\"80\"></label>" +
+      "<label>類型<select name=\"kind\"><option value=\"group\">群組</option><option value=\"item\">功能</option></select></label>" +
+      "<label>上層<select name=\"parentId\">" + parentOptions + "</select></label>" +
+      "<label data-item-only>對應功能<select name=\"target\">" + targetOptions + "</select></label>" +
+      "<label>排序<input name=\"sortOrder\" type=\"number\" min=\"0\" max=\"9999\" step=\"1\"></label>" +
+      "<label class=\"check\"><input type=\"checkbox\" name=\"adminOnly\"> 只給管理者看到</label>" +
+      "<label class=\"check\"><input type=\"checkbox\" name=\"enabled\"> 顯示在左側選單</label>" +
+      "<p class=\"muted tiny\" data-lock-note hidden>這是進入選單管理的入口，不能改成其他功能，也不能停用或刪除。</p>";
+    var kind = form.querySelector("[name=kind]");
+    var target = form.querySelector("[name=target]");
+    var parent = form.querySelector("[name=parentId]");
+    var sort = form.querySelector("[name=sortOrder]");
+    var adminOnly = form.querySelector("[name=adminOnly]");
+    var enabled = form.querySelector("[name=enabled]");
+    if (row) {
+      form.querySelector("[name=label]").value = row.label || "";
+      kind.value = row.kind || "item";
+      parent.value = row.parentId ? String(row.parentId) : "";
+      if (row.target) target.value = row.target;
+      sort.value = String(row.sortOrder || 0);
+      adminOnly.checked = !!row.adminOnly;
+      enabled.checked = !!row.enabled;
+    } else {
+      kind.value = preset.kind || "item";
+      var presetParent = preset.parentId == null ? null : Number(preset.parentId);
+      parent.value = presetParent ? String(presetParent) : "";
+      var available = target.querySelector("option:not([disabled])");
+      if (available) target.value = available.value;
+      sort.value = String(nextSortOrder(presetParent));
+      enabled.checked = true;
+    }
+    function sync() {
+      var isItem = kind.value === "item";
+      var itemOnly = form.querySelector("[data-item-only]");
+      if (itemOnly) itemOnly.hidden = !isItem;
+      var forceAdmin = isItem && (target.value === "users" || target.value === "menus");
+      var locked = form.dataset.locked === "1";
+      adminOnly.disabled = locked || forceAdmin;
+      if (locked || forceAdmin) adminOnly.checked = true;
+      enabled.disabled = locked;
+      if (locked) enabled.checked = true;
+      kind.disabled = locked;
+      target.disabled = locked;
+      var note = form.querySelector("[data-lock-note]");
+      if (note) note.hidden = !locked;
+    }
+    kind.addEventListener("change", sync);
+    target.addEventListener("change", sync);
+    sync();
+    return form;
+  }
+
+  function menuPayload(form) {
+    var kind = fieldValue(form, "kind");
+    var parentRaw = fieldValue(form, "parentId");
+    return {
+      label: fieldValue(form, "label"),
+      kind: kind,
+      parentId: parentRaw ? Number(parentRaw) : null,
+      target: kind === "item" ? fieldValue(form, "target") : "",
+      sortOrder: Number(fieldValue(form, "sortOrder")),
+      adminOnly: !!form.querySelector("[name=adminOnly]").checked,
+      enabled: !!form.querySelector("[name=enabled]").checked
+    };
+  }
+
+  function menuMatchesFilter(item) {
+    var q = ((menuSearch && menuSearch.value) || "").trim().toLowerCase();
+    var kind = (menuKindFilter && menuKindFilter.value) || "";
+    if (kind && item.kind !== kind) return false;
+    if (!q) return true;
+    var blob = [
+      item.label,
+      menuPath(item),
+      MENU_KIND_LABEL[item.kind] || item.kind,
+      PANEL_LABELS[item.target] || item.target
+    ].join(" ").toLowerCase();
+    return blob.indexOf(q) !== -1;
+  }
+
+  function menuFilterActive() {
+    return !!(((menuSearch && menuSearch.value) || "").trim() || ((menuKindFilter && menuKindFilter.value) || ""));
+  }
+
+  function openMenuCreate(parentId) {
+    openModal(
+      parentId ? "新增子項目" : "新增選單",
+      menuForm(null, { parentId: parentId || null, kind: "item" }),
+      "menu-create",
+      null
+    );
+  }
+
+  function renderMenus() {
+    if (!menuList) return;
+    menuList.textContent = "";
+    if (!menuRows.length) {
+      menuList.appendChild(el("p", "muted", "尚未建立選單。"));
+      return;
+    }
+
+    var byParent = {};
+    menuRows.forEach(function (item) {
+      var key = item.parentId || 0;
+      if (!byParent[key]) byParent[key] = [];
+      byParent[key].push(item);
+    });
+    Object.keys(byParent).forEach(function (key) {
+      byParent[key].sort(function (a, b) {
+        return (a.sortOrder - b.sortOrder) || (a.id - b.id);
+      });
+    });
+
+    var filtering = menuFilterActive();
+    var matchIds = {};
+    var keepIds = {};
+    if (filtering) {
+      menuRows.forEach(function (item) {
+        if (menuMatchesFilter(item)) matchIds[item.id] = true;
+      });
+      Object.keys(matchIds).forEach(function (id) {
+        var cursor = menuById(Number(id));
+        var guard = 0;
+        while (cursor && guard < 8) {
+          keepIds[cursor.id] = true;
+          cursor = cursor.parentId ? menuById(cursor.parentId) : null;
+          guard += 1;
+        }
+      });
+      if (!Object.keys(keepIds).length) {
+        menuList.appendChild(el("p", "muted", "沒有符合條件的選單。"));
+        return;
+      }
+    }
+
+    var head = el("div", "menu-tree-head");
+    ["名稱", "類型", "對應功能", "排序", "顯示", "權限", "操作"].forEach(function (label, index) {
+      head.appendChild(el("span", index === 6 ? "menu-tree-col actions" : "menu-tree-col", label));
+    });
+    menuList.appendChild(head);
+
+    var body = el("div", "menu-tree-body");
+    var rendered = 0;
+
+    function walk(parentId, depth) {
+      (byParent[parentId] || []).forEach(function (item) {
+        if (filtering && !keepIds[item.id]) return;
+        var children = byParent[item.id] || [];
+        var hasChildren = item.kind === "group" && children.some(function (child) {
+          return !filtering || keepIds[child.id];
+        });
+        var open = hasChildren && (filtering || isMenuTreeOpen(item.id));
+        var row = el("div", "menu-tree-row" + (open ? " is-open" : "") + (item.locked ? " is-locked" : ""));
+        row.style.setProperty("--menu-depth", String(depth));
+
+        var nameCell = el("div", "menu-tree-name");
+        var twist = el("button", "menu-tree-twist" + (hasChildren ? "" : " is-empty"));
+        twist.type = "button";
+        twist.innerHTML = hasChildren ? ICON_CHEVRON : "";
+        twist.setAttribute("aria-label", open ? "收合" : "展開");
+        twist.disabled = !hasChildren;
+        if (hasChildren) {
+          twist.setAttribute("aria-expanded", open ? "true" : "false");
+          twist.addEventListener("click", function () {
+            menuTreeOpen[String(item.id)] = !isMenuTreeOpen(item.id);
+            saveMenuTreeOpen();
+            renderMenus();
+          });
+        }
+        var icon = el("span", "menu-tree-icon " + (item.kind === "group" ? "folder" : "file"));
+        icon.innerHTML = item.kind === "group" ? ICON_FOLDER : ICON_FILE;
+        var label = el("span", "menu-tree-label", item.label);
+        nameCell.appendChild(twist);
+        nameCell.appendChild(icon);
+        nameCell.appendChild(label);
+        row.appendChild(nameCell);
+
+        row.appendChild(el("div", "menu-tree-meta", MENU_KIND_LABEL[item.kind] || item.kind));
+        row.appendChild(el(
+          "div",
+          "menu-tree-meta",
+          item.kind === "item" ? (PANEL_LABELS[item.target] || item.target) : "—"
+        ));
+        row.appendChild(el("div", "menu-tree-meta mono", String(item.sortOrder)));
+
+        var showCell = el("div", "menu-tree-meta");
+        showCell.appendChild(statusPill(item.enabled ? "published" : "archived", item.enabled ? "顯示中" : "已隱藏"));
+        row.appendChild(showCell);
+
+        var roleCell = el("div", "menu-tree-meta");
+        roleCell.appendChild(el(
+          "span",
+          item.adminOnly ? "role-badge role-admin" : "role-badge role-editor",
+          item.adminOnly ? "管理者" : "所有人"
+        ));
+        row.appendChild(roleCell);
+
+        var actions = el("div", "menu-tree-actions row-actions");
+        if (item.kind === "group") {
+          var addChild = el("button", "btn-icon add");
+          addChild.type = "button";
+          addChild.title = "新增子項目";
+          addChild.setAttribute("aria-label", "新增子項目");
+          addChild.innerHTML = ICON_ADD;
+          addChild.addEventListener("click", function () {
+            openMenuCreate(item.id);
+          });
+          actions.appendChild(addChild);
+        }
+        appendActionButtons(actions, {
+          onEdit: function () {
+            openModal(item.locked ? "編輯選單管理" : "編輯選單", menuForm(item), "menu-edit", item);
+          },
+          onDelete: function () {
+            if (item.locked) return;
+            if (!window.confirm("刪除「" + item.label + "」？")) return;
+            api("/api/admin/menus/" + item.id, { method: "DELETE" }).then(function () {
+              return loadMenus();
+            }).catch(function (err) {
+              window.alert(menuErrorMessage(err.code));
+            });
+          },
+          deleteDisabled: !!item.locked,
+          deleteTitle: item.locked ? "選單管理不能刪除" : "刪除"
+        });
+        row.appendChild(actions);
+        body.appendChild(row);
+        rendered += 1;
+        if (open) walk(item.id, depth + 1);
+      });
+    }
+
+    walk(0, 0);
+    if (!rendered) {
+      menuList.appendChild(el("p", "muted", "沒有符合條件的選單。"));
+      return;
+    }
+    menuList.appendChild(body);
+  }
+
+  function loadMenus() {
+    return api("/api/admin/menus").then(function (data) {
+      menuRows = data.menus || [];
+      renderTree();
+      if (me.role === "admin") renderMenus();
+    }).catch(function () {
+      if (!menuRows.length) menuRows = fallbackMenus();
+      renderTree();
+      if (menuList && me.role === "admin") menuList.textContent = "選單讀取失敗。請確認本機資料庫已套用最新的 migration。";
+    });
+  }
+
   function saveModal() {
     var form = modalBody.querySelector("form");
     if (!form) return;
@@ -1173,6 +1777,29 @@
         loadPages();
       }).catch(function (err) {
         modalStatus.textContent = err.code === "exists" ? "同一語系的 slug 已存在。" : "儲存失敗。";
+      });
+      return;
+    }
+    if (modalMode === "menu-create" || modalMode === "menu-edit") {
+      var menuBody = menuPayload(form);
+      var menuReq = modalMode === "menu-create"
+        ? api("/api/admin/menus", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(menuBody)
+          })
+        : api("/api/admin/menus/" + modalTarget.id, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(menuBody)
+          });
+      menuReq.then(function () {
+        closeModal();
+        return loadMenus();
+      }).then(function () {
+        if (workspaceTitle) workspaceTitle.textContent = labelForTarget(activeTarget);
+      }).catch(function (err) {
+        modalStatus.textContent = menuErrorMessage(err.code);
       });
       return;
     }
@@ -1254,17 +1881,34 @@
     }).then(function () { location.href = "/admin/login"; });
   });
 
-  document.querySelectorAll(".tab").forEach(function (tab) {
-    tab.addEventListener("click", function () {
-      if (tab.getAttribute("data-tab") !== "content" && contentDirty) {
-        if (!window.confirm("文案尚未儲存，確定離開？")) return;
-      }
-      document.querySelectorAll(".tab").forEach(function (item) { item.classList.remove("on"); });
-      document.querySelectorAll(".panel").forEach(function (item) { item.classList.remove("on"); });
-      tab.classList.add("on");
-      document.getElementById(tab.getAttribute("data-tab")).classList.add("on");
+  if (explorerToggle && adminShell) {
+    explorerToggle.addEventListener("click", function () {
+      adminShell.classList.toggle("is-collapsed");
+      try {
+        localStorage.setItem(EXPLORER_COLLAPSE_KEY, adminShell.classList.contains("is-collapsed") ? "1" : "0");
+      } catch (err) { /* ignore quota */ }
     });
-  });
+  }
+
+  if (menuSearch) {
+    menuSearch.addEventListener("input", function () {
+      debounce("menus", function () {
+        renderMenus();
+      });
+    });
+  }
+  if (menuKindFilter) {
+    menuKindFilter.addEventListener("change", function () {
+      renderMenus();
+    });
+  }
+  if (menuReloadBtn) menuReloadBtn.addEventListener("click", loadMenus);
+  var menuCreateBtn = document.getElementById("menu-create");
+  if (menuCreateBtn) {
+    menuCreateBtn.addEventListener("click", function () {
+      openMenuCreate(null);
+    });
+  }
 
   filter.addEventListener("change", loadEnquiries);
   enquirySearch.addEventListener("input", function () {
@@ -1433,6 +2077,26 @@
     event.returnValue = "";
   });
 
+  window.addEventListener("popstate", function () {
+    if (syncingHistory) return;
+    var fromPath = targetFromPath(location.pathname);
+    var next = firstAvailableTarget(fromPath);
+    if (next !== "content" && activeTarget !== next && contentDirty) {
+      if (!window.confirm("文案尚未儲存，確定離開？")) {
+        syncUrl(activeTarget, "push");
+        return;
+      }
+      contentDirty = false;
+      if (contentStatus) contentStatus.textContent = "";
+    }
+    if (!showPanel(next, { silent: true, history: "none" })) {
+      showPanel(firstAvailableTarget(null), { silent: true, history: "replace" });
+      return;
+    }
+    if (next !== fromPath) syncUrl(next, "replace");
+  });
+
+  loadExplorerState();
   enquiryVisibleKeys = loadVisibleColumns(ENQUIRY_COLUMNS_KEY, ENQUIRY_COLUMNS, enquiryVisibleKeys);
   pageVisibleKeys = loadVisibleColumns(PAGE_COLUMNS_KEY, PAGE_COLUMNS, pageVisibleKeys);
   userVisibleKeys = loadVisibleColumns(USER_COLUMNS_KEY, USER_COLUMNS, userVisibleKeys);
@@ -1464,11 +2128,16 @@
 
   api("/api/admin/me").then(function (data) {
     refreshMeFrom(data);
-    loadEnquiries();
-    loadContent();
-    loadMedia();
-    loadPages();
-    if (me.role === "admin") loadUsers();
+    return loadMenus().then(function () {
+      var preferred = targetFromPath(location.pathname) || "enquiries";
+      var start = firstAvailableTarget(preferred);
+      showPanel(start, { silent: true, history: "replace" });
+      loadEnquiries();
+      loadContent();
+      loadMedia();
+      loadPages();
+      if (me.role === "admin") loadUsers();
+    });
   }).catch(function () {
     location.href = "/admin/login";
   });

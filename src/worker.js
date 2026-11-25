@@ -12,6 +12,10 @@ const STATUSES = new Set(["new", "read", "archived"]);
 const LOCALES = ["en", "zh-tw", "ja", "vi"];
 const ROLES = new Set(["admin", "editor"]);
 const PAGE_STATUSES = new Set(["draft", "published"]);
+const MENU_KINDS = new Set(["group", "item"]);
+const MENU_TARGETS = new Set(["enquiries", "content", "media", "pages", "users", "menus"]);
+const MENU_LOCK_TARGET = "menus";
+const MENU_MAX_DEPTH = 4;
 const MEDIA_TYPES = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -829,26 +833,228 @@ async function publicCmsPage(env, locale, slug) {
   return html(renderPublicPage(mapPage(row)));
 }
 
+function mapMenu(row) {
+  return {
+    id: row.id,
+    parentId: row.parent_id == null ? null : row.parent_id,
+    label: row.label,
+    kind: row.kind,
+    target: row.target || "",
+    sortOrder: row.sort_order,
+    adminOnly: !!row.admin_only,
+    enabled: row.enabled !== 0,
+    locked: row.target === MENU_LOCK_TARGET,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function menusForViewer(menus, role) {
+  if (role === "admin") return menus;
+  const byId = new Map(menus.map(function (item) { return [item.id, item]; }));
+  return menus.filter(function (item) {
+    if (!item.enabled || item.adminOnly) return false;
+    let parentId = item.parentId;
+    const seen = new Set([item.id]);
+    while (parentId) {
+      if (seen.has(parentId)) return false;
+      seen.add(parentId);
+      const parent = byId.get(parentId);
+      if (!parent || !parent.enabled || parent.adminOnly) return false;
+      parentId = parent.parentId;
+    }
+    return true;
+  });
+}
+
+async function allMenuRows(env) {
+  const result = await env.DB.prepare(
+    "SELECT id, parent_id, label, kind, target, sort_order, admin_only, enabled, created_at, updated_at FROM admin_menus ORDER BY sort_order ASC, id ASC"
+  ).all();
+  return result.results || [];
+}
+
+function clampSort(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(9999, Math.round(n)));
+}
+
+function flagOff(value) {
+  return value === false || value === 0 || value === "0" || value === "false";
+}
+
+function flagOn(value) {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function normalizeMenuInput(raw, current) {
+  const value = raw || {};
+  const label = cleanText(value.label != null ? value.label : (current ? current.label : ""), 80);
+  const kind = String(value.kind != null ? value.kind : (current ? current.kind : "item"));
+  if (!label) return { error: "label" };
+  if (!MENU_KINDS.has(kind)) return { error: "kind" };
+  let target = kind === "group"
+    ? ""
+    : cleanText(value.target != null ? value.target : (current ? current.target : ""), 40);
+  if (kind === "item" && !MENU_TARGETS.has(target)) return { error: "target" };
+
+  let parentId;
+  if (value.parentId === undefined) parentId = current ? current.parent_id : null;
+  else if (value.parentId == null || value.parentId === "") parentId = null;
+  else {
+    parentId = Number(value.parentId);
+    if (!Number.isInteger(parentId) || parentId <= 0) return { error: "parent" };
+  }
+
+  const sortOrder = clampSort(value.sortOrder != null ? value.sortOrder : (current ? current.sort_order : 0));
+  let adminOnly = value.adminOnly == null
+    ? (current && current.admin_only ? 1 : 0)
+    : (flagOn(value.adminOnly) ? 1 : 0);
+  let enabled = value.enabled == null
+    ? (current ? (current.enabled !== 0 ? 1 : 0) : 1)
+    : (flagOff(value.enabled) ? 0 : 1);
+
+  if (target === "users" || target === MENU_LOCK_TARGET) adminOnly = 1;
+  if (current && current.target === MENU_LOCK_TARGET) {
+    if (kind !== "item" || target !== MENU_LOCK_TARGET) return { error: "locked" };
+    target = MENU_LOCK_TARGET;
+    adminOnly = 1;
+    enabled = 1;
+  }
+  return { value: { label: label, kind: kind, target: target, parentId: parentId, sortOrder: sortOrder, adminOnly: adminOnly, enabled: enabled } };
+}
+
+function menuParentError(rows, id, parentId) {
+  if (parentId == null) return "";
+  if (id && parentId === id) return "parent";
+  const byId = new Map(rows.map(function (row) { return [row.id, row]; }));
+  const parent = byId.get(parentId);
+  if (!parent || parent.kind !== "group") return "parent";
+  let cursor = parentId;
+  let depth = 0;
+  const seen = new Set();
+  while (cursor != null) {
+    depth += 1;
+    if (depth > MENU_MAX_DEPTH) return "depth";
+    if (id && cursor === id) return "cycle";
+    if (seen.has(cursor)) return "cycle";
+    seen.add(cursor);
+    const node = byId.get(cursor);
+    if (!node) return "parent";
+    cursor = node.parent_id == null ? null : node.parent_id;
+  }
+  return "";
+}
+
+async function listMenus(env, admin) {
+  const rows = await allMenuRows(env);
+  return menusForViewer(rows.map(mapMenu), admin.role);
+}
+
+async function createMenu(request, env) {
+  const parsed = await readBody(request);
+  if (parsed.error) return json({ ok: false }, 400);
+  const rows = await allMenuRows(env);
+  const normalized = normalizeMenuInput(parsed.value, null);
+  if (normalized.error) return json({ ok: false, error: normalized.error }, 400);
+  const next = normalized.value;
+  const parentError = menuParentError(rows, null, next.parentId);
+  if (parentError) return json({ ok: false, error: parentError }, 400);
+  if (next.target && rows.some(function (row) { return row.target === next.target; })) {
+    return json({ ok: false, error: "exists" }, 409);
+  }
+  const now = Date.now();
+  const result = await env.DB.prepare(
+    "INSERT INTO admin_menus (parent_id, label, kind, target, sort_order, admin_only, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(next.parentId, next.label, next.kind, next.target, next.sortOrder, next.adminOnly, next.enabled, now, now).run();
+  const id = result.meta && result.meta.last_row_id;
+  return json({
+    ok: true,
+    menu: mapMenu({
+      id: id,
+      parent_id: next.parentId,
+      label: next.label,
+      kind: next.kind,
+      target: next.target,
+      sort_order: next.sortOrder,
+      admin_only: next.adminOnly,
+      enabled: next.enabled,
+      created_at: now,
+      updated_at: now
+    })
+  }, 201);
+}
+
+async function updateMenu(request, env, menuId) {
+  const parsed = await readBody(request);
+  if (parsed.error) return json({ ok: false }, 400);
+  const rows = await allMenuRows(env);
+  const current = rows.find(function (row) { return row.id === menuId; });
+  if (!current) return json({ ok: false }, 404);
+  const normalized = normalizeMenuInput(parsed.value, current);
+  if (normalized.error) return json({ ok: false, error: normalized.error }, 400);
+  const next = normalized.value;
+  if (current.kind === "group" && next.kind !== "group" && rows.some(function (row) { return row.parent_id === menuId; })) {
+    return json({ ok: false, error: "has-children" }, 400);
+  }
+  const parentError = menuParentError(rows, menuId, next.parentId);
+  if (parentError) return json({ ok: false, error: parentError }, 400);
+  if (next.target && rows.some(function (row) { return row.target === next.target && row.id !== menuId; })) {
+    return json({ ok: false, error: "exists" }, 409);
+  }
+  const now = Date.now();
+  await env.DB.prepare(
+    "UPDATE admin_menus SET parent_id = ?, label = ?, kind = ?, target = ?, sort_order = ?, admin_only = ?, enabled = ?, updated_at = ? WHERE id = ?"
+  ).bind(next.parentId, next.label, next.kind, next.target, next.sortOrder, next.adminOnly, next.enabled, now, menuId).run();
+  return json({
+    ok: true,
+    menu: mapMenu({
+      id: menuId,
+      parent_id: next.parentId,
+      label: next.label,
+      kind: next.kind,
+      target: next.target,
+      sort_order: next.sortOrder,
+      admin_only: next.adminOnly,
+      enabled: next.enabled,
+      created_at: current.created_at,
+      updated_at: now
+    })
+  });
+}
+
+async function deleteMenu(env, menuId) {
+  const row = await env.DB.prepare(
+    "SELECT id, target FROM admin_menus WHERE id = ?"
+  ).bind(menuId).first();
+  if (!row) return json({ ok: false }, 404);
+  if (row.target === MENU_LOCK_TARGET) return json({ ok: false, error: "locked" }, 400);
+  const child = await env.DB.prepare("SELECT id FROM admin_menus WHERE parent_id = ? LIMIT 1").bind(menuId).first();
+  if (child) return json({ ok: false, error: "has-children" }, 400);
+  await env.DB.prepare("DELETE FROM admin_menus WHERE id = ?").bind(menuId).run();
+  return json({ ok: true });
+}
+
 function loginPage(message) {
   const note = message ? "<p class=\"bad\" role=\"alert\">" + esc(message) + "</p>" : "";
-  return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>登入｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body class=\"login-body\"><main class=\"login-card\"><p class=\"brand\">North<span>go</span></p><h1>後台登入</h1><p class=\"muted\">管理文案、媒體、動態頁面、詢問與帳號。</p>" +
+  return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>登入｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body class=\"login-body\"><main class=\"login-card\"><p class=\"brand\">North<span>go</span></p><h1>後台登入</h1><p class=\"muted\">管理詢問、文案、媒體、動態頁面、帳號與選單。</p>" +
     note + "<form id=\"login-form\" method=\"post\" action=\"/api/login\"><label>帳號<input name=\"username\" autocomplete=\"username\" required></label><label>密碼<input name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label><button class=\"button\" type=\"submit\">登入</button><p class=\"form-status\" role=\"status\"></p></form><p class=\"admin-version\">v" + esc(APP_VERSION) + "</p></main><script src=\"/assets/login.js\" defer></script></body></html>";
 }
 
 function adminPage() {
-  return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>後台｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body>" +
+  return "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>後台｜Northgo</title><link rel=\"stylesheet\" href=\"/assets/admin.css\"></head><body class=\"admin-app\">" +
     "<header class=\"admin-bar\"><a class=\"brand\" href=\"/\">North<span>go</span></a><strong>後台管理</strong>" +
     "<span class=\"admin-version\" title=\"目前版本\">v" + esc(APP_VERSION) + "</span>" +
     "<div id=\"whoami\" class=\"whoami\" aria-live=\"polite\"></div>" +
     "<button type=\"button\" id=\"profile-edit\" class=\"ghost\">我的帳號</button>" +
     "<button type=\"button\" id=\"logout\" class=\"ghost\">登出</button></header>" +
-    "<main class=\"admin-main\"><div class=\"tabs\" role=\"tablist\">" +
-    "<button type=\"button\" class=\"tab on\" data-tab=\"enquiries\">客戶詢問</button>" +
-    "<button type=\"button\" class=\"tab\" data-tab=\"content\">網站內容</button>" +
-    "<button type=\"button\" class=\"tab\" data-tab=\"media\">媒體</button>" +
-    "<button type=\"button\" class=\"tab\" data-tab=\"pages\">動態頁面</button>" +
-    "<button type=\"button\" class=\"tab\" data-tab=\"users\" data-admin-only hidden>使用者</button>" +
-    "</div>" +
+    "<div class=\"admin-shell\" id=\"admin-shell\">" +
+    "<aside class=\"explorer\" aria-label=\"功能選單\">" +
+    "<div class=\"explorer-head\"><span class=\"explorer-title\">功能</span></div>" +
+    "<nav id=\"explorer-tree\" class=\"explorer-tree\"></nav></aside>" +
+    "<main class=\"admin-main\">" +
+    "<div class=\"workspace-bar\"><button type=\"button\" id=\"explorer-toggle\" class=\"explorer-toggle\" aria-label=\"收合功能選單\" title=\"收合功能選單\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M2 2.5h12v11H2v-11zM3.5 4v8H7V4H3.5z\"/></svg></button><h1 id=\"workspace-title\">客戶詢問</h1></div>" +
     "<section id=\"enquiries\" class=\"panel on\"><div class=\"toolbar\">" +
     "<label>搜尋<input id=\"enquiry-search\" type=\"search\" placeholder=\"姓名、公司、Email\"></label>" +
     "<label>狀態<select id=\"status-filter\"><option value=\"\">全部</option><option value=\"new\" selected>新進</option><option value=\"read\">已讀</option><option value=\"archived\">已封存</option></select></label>" +
@@ -904,7 +1110,17 @@ function adminPage() {
     "<button type=\"button\" id=\"user-create\" class=\"button\">新增使用者</button>" +
     "</div>" +
     "</div><div id=\"user-list\"></div><div id=\"user-pager\" class=\"pager\"></div></section>" +
-    "</main>" +
+    "<section id=\"menus\" class=\"panel\" data-admin-only hidden>" +
+    "<div class=\"toolbar\">" +
+    "<label>搜尋<input id=\"menu-search\" type=\"search\" placeholder=\"名稱或功能\"></label>" +
+    "<label>類型<select id=\"menu-kind-filter\"><option value=\"\">全部</option><option value=\"group\">群組</option><option value=\"item\">功能</option></select></label>" +
+    "<div class=\"toolbar-actions\">" +
+    "<button type=\"button\" id=\"menu-reload\" class=\"ghost\">重新載入</button>" +
+    "<button type=\"button\" id=\"menu-create\" class=\"button\">新增選單</button>" +
+    "</div></div>" +
+    "<p class=\"muted tiny\">左側功能選單依這裡的群組、排序與是否顯示來排列。點箭頭可展開或收合群組。「選單管理」是進入這個畫面的入口，不能刪除或停用。</p>" +
+    "<div id=\"menu-list\" class=\"menu-tree\"></div></section>" +
+    "</main></div>" +
     "<div id=\"modal\" class=\"modal\" hidden><div class=\"modal-card\" role=\"dialog\" aria-modal=\"true\"><div class=\"modal-head\"><h2 id=\"modal-title\">編輯</h2><button type=\"button\" id=\"modal-close\" class=\"ghost\">關閉</button></div><div id=\"modal-body\"></div><div class=\"modal-actions\"><button type=\"button\" id=\"modal-cancel\" class=\"ghost\">取消</button><button type=\"button\" id=\"modal-save\" class=\"button\">儲存</button></div><p id=\"modal-status\" class=\"form-status\" role=\"status\"></p></div></div>" +
     "<script src=\"/assets/admin.js\" defer></script></body></html>";
 }
@@ -934,7 +1150,8 @@ export default {
         if (admin) return Response.redirect(new URL("/admin", request.url), 303);
         return html(loginPage(""));
       }
-      if (path === "/admin" && request.method === "GET") {
+      const adminPanelMatch = path.match(/^\/admin(?:\/(enquiries|content|media|pages|users|menus))?$/);
+      if (adminPanelMatch && request.method === "GET") {
         const admin = await currentAdmin(request, env);
         if (!admin) return Response.redirect(new URL("/admin/login", request.url), 303);
         return html(adminPage());
@@ -1015,6 +1232,24 @@ export default {
         }
         if (pageMatch && request.method === "DELETE") {
           return deletePage(env, Number(pageMatch[1]));
+        }
+
+        if (request.method === "GET" && path === "/api/admin/menus") {
+          return json({ menus: await listMenus(env, admin) });
+        }
+        if (path.startsWith("/api/admin/menus")) {
+          const roleGate = requireRole(admin, "admin");
+          if (roleGate.error) return roleGate.error;
+          if (request.method === "POST" && path === "/api/admin/menus") {
+            return createMenu(request, env);
+          }
+          const menuMatch = path.match(/^\/api\/admin\/menus\/(\d+)$/);
+          if (menuMatch && request.method === "PATCH") {
+            return updateMenu(request, env, Number(menuMatch[1]));
+          }
+          if (menuMatch && request.method === "DELETE") {
+            return deleteMenu(env, Number(menuMatch[1]));
+          }
         }
 
         if (path.startsWith("/api/admin/users")) {

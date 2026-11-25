@@ -1,7 +1,7 @@
 # Northgo 官網示範站（northgo-w4）
 
 這是用大躍（Northgo）官網內容重新做的**示範網站**，給「AI 系統開發入門班」當教學範例。
-本資料夾自 [northgo-demo.aidc.work](https://northgo-demo.aidc.work/) 對應的示範站原始碼複製而來，架構與內容相同（v0.1.6）。
+本資料夾自 [northgo-demo.aidc.work](https://northgo-demo.aidc.work/) 對應的示範站原始碼複製而來，架構與內容相同（v0.1.7）。
 它示範一個網站怎麼從「只有畫面」一步步變成「能收資料、能自己管理」的系統。
 
 - 參考線上示範：https://northgo-demo.aidc.work/
@@ -20,7 +20,7 @@
 | 公司介紹 | 首頁、關於我們、四個服務頁（貨運物流、專案物流、倉儲物流、船務代理） |
 | 詢價表單 | 「聯絡我們」頁可以填寫詢價，送出前會檢查必填欄位、Email 和電話格式 |
 | 存進資料庫 | 送出的詢價會存起來，不會因為關掉網頁就不見 |
-| 後台 | 登入後可管理詢價、網站文案、圖片媒體、動態頁面；管理者還能管理帳號與角色 |
+| 後台 | 登入後左側樹狀選單可管理詢價、網站文案、圖片媒體、動態頁面；管理者還能管理帳號、角色與選單 |
 
 ---
 
@@ -55,12 +55,13 @@
 | `content_overrides` | 在後台改過的網站文字 |
 | `media_assets` | 後台上傳的圖片中繼資料（檔案本體在 R2） |
 | `cms_pages` | 後台建立的動態頁面（草稿／已發布） |
+| `admin_menus` | 後台左側功能選單（群組與功能、排序、是否只給管理者） |
 
 角色說明：
 
 | 角色 | 可以做什麼 |
 |---|---|
-| `admin` | 詢價、文案、媒體、動態頁面、使用者帳號（含頭像與顯示名稱） |
+| `admin` | 詢價、文案、媒體、動態頁面、使用者帳號（含頭像與顯示名稱）、選單 |
 | `editor` | 詢價、文案、媒體、動態頁面（不能管帳號）；可在「我的帳號」改自己的顯示名稱、密碼與頭像 |
 
 ---
@@ -133,6 +134,7 @@
 | 存進資料庫 | `migrations/0001_init.sql` + `src/worker.js` |
 | 後台和登入 | `/admin`、`src/auth.mjs`、`assets/admin.js` |
 | 角色、媒體、動態頁 | `migrations/0002_admin_cms_media.sql`、`src/worker.js` |
+| 後台左側選單 | `migrations/0004_admin_menus.sql`、`assets/admin.js` |
 | 上線 | `wrangler.jsonc` + `npm run deploy` |
 
 ---
